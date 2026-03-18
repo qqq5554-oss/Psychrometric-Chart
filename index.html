@@ -1116,19 +1116,21 @@ function onMixSlider() {
   calcMixing();
 }
 
+let _skipRatioSync = false;
+
 function onMixRatioInput() {
-  let rA = parseFloat(document.getElementById('mixRatioA').value) || 0;
-  let rB = parseFloat(document.getElementById('mixRatioB').value) || 0;
-  // Normalize to 100%
+  const rA = parseFloat(document.getElementById('mixRatioA').value) || 0;
+  const rB = parseFloat(document.getElementById('mixRatioB').value) || 0;
   const total = rA + rB;
   if (total <= 0) return;
-  rA = rA / total * 100;
-  rB = rB / total * 100;
+  const pctA = rA / total * 100;
   const totalFlow = parseFloat(document.getElementById('mixA_flow').value) + parseFloat(document.getElementById('mixB_flow').value);
-  document.getElementById('mixA_flow').value = (totalFlow * rA / 100).toFixed(0);
-  document.getElementById('mixB_flow').value = (totalFlow * rB / 100).toFixed(0);
-  document.getElementById('mixSlider').value = Math.round(rA);
+  document.getElementById('mixA_flow').value = (totalFlow * rA / total).toFixed(0);
+  document.getElementById('mixB_flow').value = (totalFlow * rB / total).toFixed(0);
+  document.getElementById('mixSlider').value = Math.round(pctA);
+  _skipRatioSync = true;
   calcMixing();
+  _skipRatioSync = false;
 }
 
 function calcMixing() {
@@ -1159,10 +1161,12 @@ function calcMixing() {
   const ratioA = flowA / totalFlow;
   const ratioB = flowB / totalFlow;
 
-  // Update slider and ratio inputs
+  // Update slider and ratio inputs (skip if triggered by ratio input)
   document.getElementById('mixSlider').value = Math.round(ratioA * 100);
-  document.getElementById('mixRatioA').value = Math.round(ratioA * 100);
-  document.getElementById('mixRatioB').value = Math.round(ratioB * 100);
+  if (!_skipRatioSync) {
+    document.getElementById('mixRatioA').value = Math.round(ratioA * 100);
+    document.getElementById('mixRatioB').value = Math.round(ratioB * 100);
+  }
 
   // Mixed air: mass-weighted average of W and h
   const Wmix = ratioA * stateA.W + ratioB * stateB.W;
