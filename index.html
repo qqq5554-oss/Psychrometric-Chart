@@ -293,8 +293,8 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
 
       <div class="mix-slider-container">
         <div class="mix-ratio-inputs">
-          <label>A: <input type="number" id="mixRatioA" value="50" min="0" max="100" step="1" onchange="onMixRatioInput()">%</label>
-          <label>B: <input type="number" id="mixRatioB" value="50" min="0" max="100" step="1" onchange="onMixRatioInput()">%</label>
+          <label>A: <input type="number" id="mixRatioA" value="50" min="0" max="100" step="1" onchange="onMixRatioInput('A')">%</label>
+          <label>B: <input type="number" id="mixRatioB" value="50" min="0" max="100" step="1" onchange="onMixRatioInput('B')">%</label>
         </div>
         <input type="range" id="mixSlider" min="0" max="100" value="50" oninput="onMixSlider()">
       </div>
@@ -1118,16 +1118,23 @@ function onMixSlider() {
 
 let _skipRatioSync = false;
 
-function onMixRatioInput() {
-  const rA = parseFloat(document.getElementById('mixRatioA').value) || 0;
-  const rB = parseFloat(document.getElementById('mixRatioB').value) || 0;
-  const total = rA + rB;
-  if (total <= 0) return;
-  const pctA = rA / total * 100;
+function onMixRatioInput(src) {
+  let rA = parseFloat(document.getElementById('mixRatioA').value) || 0;
+  let rB = parseFloat(document.getElementById('mixRatioB').value) || 0;
+  rA = Math.max(0, Math.min(100, rA));
+  rB = Math.max(0, Math.min(100, rB));
+  if (src === 'A') {
+    rB = 100 - rA;
+    document.getElementById('mixRatioB').value = Math.round(rB);
+  } else {
+    rA = 100 - rB;
+    document.getElementById('mixRatioA').value = Math.round(rA);
+  }
+  if (rA + rB <= 0) return;
   const totalFlow = parseFloat(document.getElementById('mixA_flow').value) + parseFloat(document.getElementById('mixB_flow').value);
-  document.getElementById('mixA_flow').value = (totalFlow * rA / total).toFixed(0);
-  document.getElementById('mixB_flow').value = (totalFlow * rB / total).toFixed(0);
-  document.getElementById('mixSlider').value = Math.round(pctA);
+  document.getElementById('mixA_flow').value = (totalFlow * rA / 100).toFixed(0);
+  document.getElementById('mixB_flow').value = (totalFlow * rB / 100).toFixed(0);
+  document.getElementById('mixSlider').value = Math.round(rA);
   _skipRatioSync = true;
   calcMixing();
   _skipRatioSync = false;
