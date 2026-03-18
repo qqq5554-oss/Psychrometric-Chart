@@ -56,6 +56,10 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
 .input-row input { flex: 1; min-width: 40px; padding: calc(4px * var(--s)) calc(5px * var(--s)); border: 1px solid #ccc; border-radius: 4px; font-size: 13px; text-align: right; }
 .input-row input:focus { outline: none; border-color: #1a237e; }
 .input-row .unit { font-size: 12px; color: #555; min-width: 40px; }
+.mix-ratio-inputs { display: flex; justify-content: space-between; margin-bottom: calc(4px * var(--s)); }
+.mix-ratio-inputs label { font-size: 12px; color: #555; display: flex; align-items: center; gap: 2px; }
+.mix-ratio-inputs input { width: 50px; padding: calc(3px * var(--s)) calc(4px * var(--s)); border: 1px solid #ccc; border-radius: 4px; font-size: 13px; text-align: right; }
+.mix-ratio-inputs input:focus { outline: none; border-color: #1a237e; }
 .mix-slider-container { padding: calc(8px * var(--s)) 0; }
 .mix-slider-container input[type="range"] { width: 100%; accent-color: #1a237e; }
 .mix-slider-label { display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-top: calc(4px * var(--s)); }
@@ -86,7 +90,8 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
 
   /* Prevent zoom on focus — iOS needs 16px */
   .form-group input, .form-group select,
-  .input-row input, .input-row select { font-size: 16px; padding: 10px 10px; }
+  .input-row input, .input-row select,
+  .mix-ratio-inputs input { font-size: 16px; padding: 10px 10px; }
   .form-group select { padding: 10px 8px; }
   .input-row input { width: 90px; }
   .input-row select { padding: 8px 6px; font-size: 14px; }
@@ -287,11 +292,11 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
       </div>
 
       <div class="mix-slider-container">
-        <input type="range" id="mixSlider" min="0" max="100" value="50" oninput="onMixSlider()">
-        <div class="mix-slider-label">
-          <span id="mixSliderA">A: 50%</span>
-          <span id="mixSliderB">B: 50%</span>
+        <div class="mix-ratio-inputs">
+          <label>A: <input type="number" id="mixRatioA" value="50" min="0" max="100" step="1" onchange="onMixRatioInput()">%</label>
+          <label>B: <input type="number" id="mixRatioB" value="50" min="0" max="100" step="1" onchange="onMixRatioInput()">%</label>
         </div>
+        <input type="range" id="mixSlider" min="0" max="100" value="50" oninput="onMixSlider()">
       </div>
 
       <div class="mix-result">
@@ -1101,14 +1106,28 @@ function updateProcessInfo() {
 // ============================================================
 function onMixSlider() {
   const ratio = parseInt(document.getElementById('mixSlider').value);
-  // Adjust flow rates based on slider while keeping total constant
   const totalFlow = parseFloat(document.getElementById('mixA_flow').value) + parseFloat(document.getElementById('mixB_flow').value);
   const flowA = totalFlow * ratio / 100;
   const flowB = totalFlow - flowA;
   document.getElementById('mixA_flow').value = flowA.toFixed(0);
   document.getElementById('mixB_flow').value = flowB.toFixed(0);
-  document.getElementById('mixSliderA').textContent = `A: ${ratio}%`;
-  document.getElementById('mixSliderB').textContent = `B: ${100 - ratio}%`;
+  document.getElementById('mixRatioA').value = ratio;
+  document.getElementById('mixRatioB').value = 100 - ratio;
+  calcMixing();
+}
+
+function onMixRatioInput() {
+  let rA = parseFloat(document.getElementById('mixRatioA').value) || 0;
+  let rB = parseFloat(document.getElementById('mixRatioB').value) || 0;
+  // Normalize to 100%
+  const total = rA + rB;
+  if (total <= 0) return;
+  rA = rA / total * 100;
+  rB = rB / total * 100;
+  const totalFlow = parseFloat(document.getElementById('mixA_flow').value) + parseFloat(document.getElementById('mixB_flow').value);
+  document.getElementById('mixA_flow').value = (totalFlow * rA / 100).toFixed(0);
+  document.getElementById('mixB_flow').value = (totalFlow * rB / 100).toFixed(0);
+  document.getElementById('mixSlider').value = Math.round(rA);
   calcMixing();
 }
 
@@ -1140,10 +1159,10 @@ function calcMixing() {
   const ratioA = flowA / totalFlow;
   const ratioB = flowB / totalFlow;
 
-  // Update slider
+  // Update slider and ratio inputs
   document.getElementById('mixSlider').value = Math.round(ratioA * 100);
-  document.getElementById('mixSliderA').textContent = `A: ${Math.round(ratioA * 100)}%`;
-  document.getElementById('mixSliderB').textContent = `B: ${Math.round(ratioB * 100)}%`;
+  document.getElementById('mixRatioA').value = Math.round(ratioA * 100);
+  document.getElementById('mixRatioB').value = Math.round(ratioB * 100);
 
   // Mixed air: mass-weighted average of W and h
   const Wmix = ratioA * stateA.W + ratioB * stateB.W;
