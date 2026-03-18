@@ -1,1 +1,704 @@
-<h1>Hello World</h1>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空氣線圖 Psychrometric Chart</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background: #f0f2f5; color: #333; display: flex; flex-direction: column; height: 100vh; }
+header { background: linear-gradient(135deg, #1a237e, #283593); color: #fff; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 20px; font-weight: 600; }
+header .lang-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+header .lang-btn:hover { background: rgba(255,255,255,0.25); }
+.main { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 280px; min-width: 280px; background: #fff; border-right: 1px solid #ddd; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.sidebar h3 { font-size: 14px; color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 4px; margin-bottom: 4px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 12px; color: #555; }
+.form-group input, .form-group select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #1a237e; }
+.btn { padding: 7px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.btn-primary { background: #1a237e; color: #fff; }
+.btn-primary:hover { background: #283593; }
+.btn-danger { background: #c62828; color: #fff; }
+.btn-danger:hover { background: #e53935; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.chart-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px; position: relative; overflow: hidden; }
+canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); max-width: 100%; max-height: 100%; }
+.hover-info { position: absolute; background: rgba(255,255,255,0.95); border: 1px solid #1a237e; border-radius: 6px; padding: 8px 12px; font-size: 12px; pointer-events: none; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); line-height: 1.6; min-width: 200px; z-index: 10; }
+.state-point-list { max-height: 160px; overflow-y: auto; }
+.state-point-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 12px; }
+.state-point-item .color-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.results-box { background: #f5f5ff; border: 1px solid #c5cae9; border-radius: 4px; padding: 8px; font-size: 11px; line-height: 1.7; }
+.process-info { background: #fff3e0; border: 1px solid #ffe0b2; border-radius: 4px; padding: 8px; font-size: 11px; line-height: 1.7; }
+.checkbox-group { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.checkbox-group input[type="checkbox"] { accent-color: #1a237e; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="title">空氣線圖 Psychrometric Chart</h1>
+  <button class="lang-btn" onclick="toggleLang()" id="langBtn">EN / 中</button>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <!-- Atmospheric Pressure -->
+    <div>
+      <h3 id="lbl_pressure">大氣壓力 Pressure</h3>
+      <div class="form-group">
+        <label id="lbl_patm">大氣壓力 (kPa)</label>
+        <input type="number" id="inputPatm" value="101.325" step="0.1" min="60" max="120" onchange="onPressureChange()">
+      </div>
+    </div>
+
+    <!-- Display Options -->
+    <div>
+      <h3 id="lbl_display">顯示選項 Display</h3>
+      <div class="checkbox-group"><input type="checkbox" id="chkRH" checked onchange="redraw()"><label for="chkRH" id="lbl_chkRH">相對濕度 RH</label></div>
+      <div class="checkbox-group"><input type="checkbox" id="chkWB" checked onchange="redraw()"><label for="chkWB" id="lbl_chkWB">濕球溫度 Twb</label></div>
+      <div class="checkbox-group"><input type="checkbox" id="chkH" checked onchange="redraw()"><label for="chkH" id="lbl_chkH">焓值 Enthalpy</label></div>
+      <div class="checkbox-group"><input type="checkbox" id="chkV" checked onchange="redraw()"><label for="chkV" id="lbl_chkV">比容 Volume</label></div>
+    </div>
+
+    <!-- State Point Input -->
+    <div>
+      <h3 id="lbl_input">狀態點輸入 State Point</h3>
+      <div class="form-group">
+        <label id="lbl_param1">參數 1 / Parameter 1</label>
+        <select id="selParam1" onchange="onParamChange()">
+          <option value="Tdb">乾球溫度 Tdb (°C)</option>
+          <option value="Twb">濕球溫度 Twb (°C)</option>
+          <option value="Tdp">露點溫度 Tdp (°C)</option>
+          <option value="RH">相對濕度 RH (%)</option>
+          <option value="W">含濕量 W (g/kg)</option>
+          <option value="h">焓值 h (kJ/kg)</option>
+        </select>
+        <input type="number" id="inputVal1" value="25" step="0.1">
+      </div>
+      <div class="form-group">
+        <label id="lbl_param2">參數 2 / Parameter 2</label>
+        <select id="selParam2" onchange="onParamChange()">
+          <option value="Tdb">乾球溫度 Tdb (°C)</option>
+          <option value="Twb">濕球溫度 Twb (°C)</option>
+          <option value="Tdp">露點溫度 Tdp (°C)</option>
+          <option value="RH" selected>相對濕度 RH (%)</option>
+          <option value="W">含濕量 W (g/kg)</option>
+          <option value="h">焓值 h (kJ/kg)</option>
+        </select>
+        <input type="number" id="inputVal2" value="50" step="0.1">
+      </div>
+      <button class="btn btn-primary" onclick="addStatePoint()" id="btnAdd">加入狀態點 Add Point</button>
+      <div id="calcResults" class="results-box" style="display:none;"></div>
+    </div>
+
+    <!-- State Points List -->
+    <div>
+      <h3 id="lbl_points">狀態點列表 Points</h3>
+      <div id="statePointList" class="state-point-list"></div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button class="btn btn-danger btn-sm" onclick="clearPoints()" id="btnClear">清除全部 Clear</button>
+        <button class="btn btn-primary btn-sm" onclick="toggleProcess()" id="btnProcess">繪製過程線 Process</button>
+      </div>
+      <div id="processInfo" class="process-info" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="chart" width="1000" height="620"></canvas>
+    <div class="hover-info" id="hoverInfo"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  Psychrometric Calculation Engine
+// ============================================================
+const Psychro = {
+  // Saturation vapor pressure (Pa) given T in °C — ASHRAE formulas
+  satPressure(T) {
+    const Tk = T + 273.15;
+    if (T >= 0) {
+      return Math.exp(-5800.2206 / Tk + 1.3914993 - 0.048640239 * Tk
+        + 0.000041764768 * Tk * Tk - 0.000000014452093 * Tk * Tk * Tk
+        + 6.5459673 * Math.log(Tk));
+    } else {
+      return Math.exp(-5674.5359 / Tk + 6.3925247 - 0.009677843 * Tk
+        + 0.00000062215701 * Tk * Tk + 0.0000000020747825 * Tk * Tk * Tk
+        - 0.00000000000094840240 * Tk * Tk * Tk * Tk + 4.1635019 * Math.log(Tk));
+    }
+  },
+
+  // Humidity ratio (kg/kg) from Tdb(°C), RH(0-1), P(kPa)
+  humidityRatio(Tdb, RH, P) {
+    const Pws = this.satPressure(Tdb) / 1000; // kPa
+    const Pw = RH * Pws;
+    if (Pw >= P) return 0.030;
+    return 0.621945 * Pw / (P - Pw);
+  },
+
+  // Saturation humidity ratio
+  Wsat(T, P) {
+    return this.humidityRatio(T, 1.0, P);
+  },
+
+  // Relative humidity from Tdb, W, P
+  relHumidity(Tdb, W, P) {
+    const Pws = this.satPressure(Tdb) / 1000;
+    const Pw = W * P / (0.621945 + W);
+    return Math.min(Pw / Pws, 1.0);
+  },
+
+  // Enthalpy (kJ/kg dry air)
+  enthalpy(Tdb, W) {
+    return 1.006 * Tdb + W * (2501 + 1.86 * Tdb);
+  },
+
+  // Specific volume (m³/kg dry air)
+  specVolume(Tdb, W, P) {
+    return 0.287042 * (Tdb + 273.15) * (1 + 1.607858 * W) / P;
+  },
+
+  // Wet bulb W at given Twb and Tdb — ASHRAE equation
+  wetBulbW(Tdb, Twb, P) {
+    const Ws = this.Wsat(Twb, P);
+    if (Tdb >= 0) {
+      return ((2501 - 2.326 * Twb) * Ws - 1.006 * (Tdb - Twb)) / (2501 + 1.86 * Tdb - 4.186 * Twb);
+    } else {
+      return ((2830 - 0.24 * Twb) * Ws - 1.006 * (Tdb - Twb)) / (2830 + 1.86 * Tdb - 2.1 * Twb);
+    }
+  },
+
+  // Find wet bulb temperature from Tdb, W, P (binary search)
+  wetBulbTemp(Tdb, W, P) {
+    let lo = -30, hi = Tdb;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      const Wcalc = this.wetBulbW(Tdb, mid, P);
+      if (Wcalc > W) hi = mid; else lo = mid;
+    }
+    return (lo + hi) / 2;
+  },
+
+  // Find dew point from W, P (binary search)
+  dewPoint(W, P) {
+    const Pw = W * P / (0.621945 + W) * 1000; // Pa
+    let lo = -60, hi = 80;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      if (this.satPressure(mid) > Pw) hi = mid; else lo = mid;
+    }
+    return (lo + hi) / 2;
+  },
+
+  // Find Tdb from enthalpy and W
+  TdbFromHW(h, W) {
+    return (h - 2501 * W) / (1.006 + 1.86 * W);
+  },
+
+  // Solve state from two known parameters
+  solve(param1, val1, param2, val2, P) {
+    let Tdb, W, RH, Twb, Tdp, h, v;
+
+    // Ensure Tdb is param1 if present
+    if (param2 === 'Tdb') { [param1, param2] = [param2, param1]; [val1, val2] = [val2, val1]; }
+
+    if (param1 === 'Tdb') {
+      Tdb = val1;
+      if (param2 === 'RH') {
+        RH = val2 / 100;
+        W = this.humidityRatio(Tdb, RH, P);
+      } else if (param2 === 'Twb') {
+        Twb = val2;
+        W = this.wetBulbW(Tdb, Twb, P);
+        if (W < 0) W = 0;
+        RH = this.relHumidity(Tdb, W, P);
+      } else if (param2 === 'Tdp') {
+        Tdp = val2;
+        const Pw = this.satPressure(Tdp) / 1000;
+        W = 0.621945 * Pw / (P - Pw);
+        if (W < 0) W = 0;
+        RH = this.relHumidity(Tdb, W, P);
+      } else if (param2 === 'W') {
+        W = val2 / 1000;
+        RH = this.relHumidity(Tdb, W, P);
+      } else if (param2 === 'h') {
+        h = val2;
+        W = (h - 1.006 * Tdb) / (2501 + 1.86 * Tdb);
+        if (W < 0) W = 0;
+        RH = this.relHumidity(Tdb, W, P);
+      }
+    } else if (param1 === 'RH' && param2 === 'Twb') {
+      RH = val1 / 100; Twb = val2;
+      // iterative: find Tdb such that wetBulbW(Tdb, Twb, P) gives W consistent with RH
+      let lo = Twb, hi = 60;
+      for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        const Ww = this.wetBulbW(mid, Twb, P);
+        const Wr = this.humidityRatio(mid, RH, P);
+        if (Wr > Ww) lo = mid; else hi = mid;
+      }
+      Tdb = (lo + hi) / 2;
+      W = this.humidityRatio(Tdb, RH, P);
+    } else if (param1 === 'W' && param2 === 'RH') {
+      W = val1 / 1000; RH = val2 / 100;
+      // find Tdb: humidityRatio(Tdb, RH, P) = W
+      let lo = -20, hi = 60;
+      for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        if (this.humidityRatio(mid, RH, P) < W) lo = mid; else hi = mid;
+      }
+      Tdb = (lo + hi) / 2;
+    } else {
+      return null; // unsupported combination
+    }
+
+    // Compute remaining
+    if (W === undefined) W = this.humidityRatio(Tdb, RH, P);
+    if (RH === undefined) RH = this.relHumidity(Tdb, W, P);
+    if (Twb === undefined) Twb = this.wetBulbTemp(Tdb, W, P);
+    if (Tdp === undefined) Tdp = this.dewPoint(W, P);
+    if (h === undefined) h = this.enthalpy(Tdb, W);
+    if (v === undefined) v = this.specVolume(Tdb, W, P);
+
+    return { Tdb, Twb, Tdp, RH, W, h, v };
+  }
+};
+
+// ============================================================
+//  Chart Renderer
+// ============================================================
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+// Chart layout constants
+const CL = 70, CT = 30, CR = 940, CB = 570;  // chart area bounds
+const CW = CR - CL, CH = CB - CT;
+const T_MIN = -10, T_MAX = 50, W_MAX = 0.030; // 30 g/kg
+
+let Patm = 101.325;
+
+function T2x(T) { return CL + (T - T_MIN) / (T_MAX - T_MIN) * CW; }
+function W2y(W) { return CB - (W / W_MAX) * CH; }
+function x2T(x) { return T_MIN + (x - CL) / CW * (T_MAX - T_MIN); }
+function y2W(y) { return (CB - y) / CH * W_MAX; }
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+  if (document.getElementById('chkRH').checked) drawRHCurves();
+  if (document.getElementById('chkWB').checked) drawWetBulbLines();
+  if (document.getElementById('chkH').checked) drawEnthalpyLines();
+  if (document.getElementById('chkV').checked) drawVolumnLines();
+  drawSaturationCurve();
+  drawStatePoints();
+  if (showProcess) drawProcessLines();
+}
+
+function drawGrid() {
+  ctx.save();
+  // Dry bulb temperature grid (vertical lines)
+  ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 0.5;
+  for (let T = T_MIN; T <= T_MAX; T += 5) {
+    const x = T2x(T);
+    ctx.beginPath(); ctx.moveTo(x, CT); ctx.lineTo(x, CB); ctx.stroke();
+  }
+  // Humidity ratio grid (horizontal lines)
+  for (let w = 0; w <= 30; w += 5) {
+    const y = W2y(w / 1000);
+    ctx.beginPath(); ctx.moveTo(CL, y); ctx.lineTo(CR, y); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(CL, CT); ctx.lineTo(CL, CB); ctx.lineTo(CR, CB); ctx.lineTo(CR, CT); ctx.stroke();
+
+  // Labels — Dry bulb (bottom)
+  ctx.fillStyle = '#333'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  for (let T = T_MIN; T <= T_MAX; T += 5) {
+    ctx.fillText(T, T2x(T), CB + 16);
+  }
+  ctx.font = '12px sans-serif';
+  ctx.fillText(lang === 'zh' ? '乾球溫度 (°C)' : 'Dry Bulb Temperature (°C)', (CL + CR) / 2, CB + 34);
+
+  // Labels — Humidity ratio (right)
+  ctx.textAlign = 'left'; ctx.font = '11px sans-serif';
+  for (let w = 0; w <= 30; w += 5) {
+    ctx.fillText(w, CR + 5, W2y(w / 1000) + 4);
+  }
+  ctx.save();
+  ctx.translate(CR + 42, (CT + CB) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center'; ctx.font = '12px sans-serif';
+  ctx.fillText(lang === 'zh' ? '含濕量 (g/kg)' : 'Humidity Ratio (g/kg)', 0, 0);
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawSaturationCurve() {
+  ctx.save();
+  ctx.strokeStyle = '#0d47a1'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  let first = true;
+  for (let T = T_MIN; T <= T_MAX; T += 0.5) {
+    const W = Psychro.Wsat(T, Patm);
+    if (W > W_MAX) continue;
+    const x = T2x(T), y = W2y(W);
+    if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawRHCurves() {
+  ctx.save();
+  const rhValues = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+  ctx.lineWidth = 0.8;
+  for (const rh of rhValues) {
+    ctx.strokeStyle = `rgba(30, 136, 229, ${0.4 + rh * 0.3})`;
+    ctx.beginPath();
+    let first = true, lastX, lastY;
+    for (let T = T_MIN; T <= T_MAX; T += 0.5) {
+      const W = Psychro.humidityRatio(T, rh, Patm);
+      if (W > W_MAX || W < 0) continue;
+      const Wsat = Psychro.Wsat(T, Patm);
+      if (W > Wsat) continue;
+      const x = T2x(T), y = W2y(W);
+      if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+      lastX = x; lastY = y;
+    }
+    ctx.stroke();
+    // Label
+    if (lastX !== undefined) {
+      ctx.fillStyle = '#1565c0'; ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText((rh * 100) + '%', lastX + 2, lastY - 2);
+    }
+  }
+  ctx.restore();
+}
+
+function drawWetBulbLines() {
+  ctx.save();
+  ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 0.6;
+  ctx.setLineDash([4, 3]);
+  const wbValues = [];
+  for (let t = -10; t <= 35; t += 5) wbValues.push(t);
+
+  for (const Twb of wbValues) {
+    ctx.beginPath();
+    let first = true, labelX, labelY;
+    for (let Tdb = Twb; Tdb <= T_MAX; Tdb += 0.5) {
+      if (Tdb < T_MIN) continue;
+      const W = Psychro.wetBulbW(Tdb, Twb, Patm);
+      if (W < 0 || W > W_MAX) continue;
+      const Wsat = Psychro.Wsat(Tdb, Patm);
+      if (W > Wsat * 1.001) continue;
+      const x = T2x(Tdb), y = W2y(W);
+      if (x < CL || x > CR || y < CT || y > CB) continue;
+      if (first) { ctx.moveTo(x, y); first = false; labelX = x; labelY = y; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    if (labelX !== undefined) {
+      ctx.fillStyle = '#2e7d32'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(Twb + '°', labelX - 3, labelY - 3);
+    }
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawEnthalpyLines() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(211, 47, 47, 0.5)'; ctx.lineWidth = 0.5;
+  ctx.setLineDash([2, 4]);
+  const hValues = [];
+  for (let hv = -10; hv <= 120; hv += 10) hValues.push(hv);
+
+  for (const hv of hValues) {
+    ctx.beginPath();
+    let first = true, labelX, labelY;
+    for (let Tdb = T_MIN; Tdb <= T_MAX; Tdb += 0.5) {
+      const W = (hv - 1.006 * Tdb) / (2501 + 1.86 * Tdb);
+      if (W < 0 || W > W_MAX) continue;
+      const Wsat = Psychro.Wsat(Tdb, Patm);
+      if (W > Wsat * 1.001) continue;
+      const x = T2x(Tdb), y = W2y(W);
+      if (x < CL || x > CR || y < CT || y > CB) continue;
+      if (first) { ctx.moveTo(x, y); first = false; labelX = x; labelY = y; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    if (labelX !== undefined) {
+      ctx.fillStyle = '#d32f2f'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(hv, labelX - 2, labelY - 2);
+    }
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawVolumnLines() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(106, 27, 154, 0.45)'; ctx.lineWidth = 0.5;
+  ctx.setLineDash([3, 4]);
+  const vValues = [];
+  for (let vv = 0.74; vv <= 0.98; vv += 0.02) vValues.push(vv);
+
+  for (const vv of vValues) {
+    ctx.beginPath();
+    let first = true, labelX, labelY;
+    for (let Tdb = T_MIN; Tdb <= T_MAX; Tdb += 0.5) {
+      const W = (vv * Patm / (0.287042 * (Tdb + 273.15)) - 1) / 1.607858;
+      if (W < 0 || W > W_MAX) continue;
+      const Wsat = Psychro.Wsat(Tdb, Patm);
+      if (W > Wsat * 1.001) continue;
+      const x = T2x(Tdb), y = W2y(W);
+      if (x < CL || x > CR || y < CT || y > CB) continue;
+      if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+      labelX = x; labelY = y;
+    }
+    ctx.stroke();
+    if (labelX !== undefined) {
+      ctx.fillStyle = '#6a1b9a'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(vv.toFixed(2), labelX, Math.min(labelY + 12, CB - 2));
+    }
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// ============================================================
+//  State Points & Process Lines
+// ============================================================
+const COLORS = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#6d4c41', '#546e7a'];
+let statePoints = [];
+let showProcess = false;
+
+function drawStatePoints() {
+  for (let i = 0; i < statePoints.length; i++) {
+    const sp = statePoints[i];
+    const x = T2x(sp.Tdb), y = W2y(sp.W);
+    const col = COLORS[i % COLORS.length];
+    // dot
+    ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    // label
+    ctx.fillStyle = col; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(`P${i + 1}`, x + 9, y + 4);
+  }
+}
+
+function drawProcessLines() {
+  if (statePoints.length < 2) return;
+  ctx.save();
+  ctx.lineWidth = 2; ctx.setLineDash([6, 3]);
+  for (let i = 0; i < statePoints.length - 1; i++) {
+    const a = statePoints[i], b = statePoints[i + 1];
+    ctx.strokeStyle = COLORS[(i + 1) % COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(T2x(a.Tdb), W2y(a.W));
+    ctx.lineTo(T2x(b.Tdb), W2y(b.W));
+    ctx.stroke();
+    // arrow
+    const ax = T2x(b.Tdb), ay = W2y(b.W);
+    const bx = T2x(a.Tdb), by = W2y(a.W);
+    const angle = Math.atan2(ay - by, ax - bx);
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 10 * Math.cos(angle - 0.4), ay - 10 * Math.sin(angle - 0.4));
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 10 * Math.cos(angle + 0.4), ay - 10 * Math.sin(angle + 0.4));
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+  updateProcessInfo();
+}
+
+// ============================================================
+//  UI Logic
+// ============================================================
+let lang = 'zh';
+const labels = {
+  zh: {
+    title: '空氣線圖 Psychrometric Chart',
+    pressure: '大氣壓力 Pressure', patm: '大氣壓力 (kPa)',
+    display: '顯示選項 Display',
+    chkRH: '相對濕度 RH', chkWB: '濕球溫度 Twb', chkH: '焓值 Enthalpy', chkV: '比容 Volume',
+    input: '狀態點輸入 State Point', param1: '參數 1', param2: '參數 2',
+    add: '加入狀態點', points: '狀態點列表 Points',
+    clear: '清除全部', process: '繪製過程線',
+    hoverTdb: '乾球溫度', hoverTwb: '濕球溫度', hoverTdp: '露點溫度',
+    hoverRH: '相對濕度', hoverW: '含濕量', hoverH: '焓值', hoverV: '比容',
+  },
+  en: {
+    title: 'Psychrometric Chart',
+    pressure: 'Pressure', patm: 'Atmospheric Pressure (kPa)',
+    display: 'Display Options',
+    chkRH: 'Relative Humidity', chkWB: 'Wet Bulb Temp', chkH: 'Enthalpy', chkV: 'Specific Volume',
+    input: 'State Point Input', param1: 'Parameter 1', param2: 'Parameter 2',
+    add: 'Add Point', points: 'State Points',
+    clear: 'Clear All', process: 'Process Lines',
+    hoverTdb: 'Dry Bulb', hoverTwb: 'Wet Bulb', hoverTdp: 'Dew Point',
+    hoverRH: 'RH', hoverW: 'Humidity Ratio', hoverH: 'Enthalpy', hoverV: 'Sp. Volume',
+  }
+};
+
+function toggleLang() {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  const L = labels[lang];
+  document.getElementById('title').textContent = L.title;
+  document.getElementById('lbl_pressure').textContent = L.pressure;
+  document.getElementById('lbl_patm').textContent = L.patm;
+  document.getElementById('lbl_display').textContent = L.display;
+  document.getElementById('lbl_chkRH').textContent = L.chkRH;
+  document.getElementById('lbl_chkWB').textContent = L.chkWB;
+  document.getElementById('lbl_chkH').textContent = L.chkH;
+  document.getElementById('lbl_chkV').textContent = L.chkV;
+  document.getElementById('lbl_input').textContent = L.input;
+  document.getElementById('lbl_param1').textContent = L.param1;
+  document.getElementById('lbl_param2').textContent = L.param2;
+  document.getElementById('btnAdd').textContent = L.add;
+  document.getElementById('lbl_points').textContent = L.points;
+  document.getElementById('btnClear').textContent = L.clear;
+  document.getElementById('btnProcess').textContent = L.process;
+  redraw();
+}
+
+function onPressureChange() {
+  Patm = parseFloat(document.getElementById('inputPatm').value) || 101.325;
+  redraw();
+}
+
+function onParamChange() {}
+
+function addStatePoint() {
+  const p1 = document.getElementById('selParam1').value;
+  const v1 = parseFloat(document.getElementById('inputVal1').value);
+  const p2 = document.getElementById('selParam2').value;
+  const v2 = parseFloat(document.getElementById('inputVal2').value);
+  if (p1 === p2) { alert(lang === 'zh' ? '請選擇兩個不同的參數' : 'Please select two different parameters'); return; }
+  if (isNaN(v1) || isNaN(v2)) { alert(lang === 'zh' ? '請輸入有效數值' : 'Please enter valid numbers'); return; }
+
+  const result = Psychro.solve(p1, v1, p2, v2, Patm);
+  if (!result) { alert(lang === 'zh' ? '不支援此參數組合' : 'Unsupported parameter combination'); return; }
+  if (result.RH > 1.0 || result.W < 0) { alert(lang === 'zh' ? '此狀態點超出有效範圍' : 'State point out of valid range'); return; }
+
+  statePoints.push(result);
+  updatePointList();
+  showCalcResults(result);
+  redraw();
+}
+
+function showCalcResults(r) {
+  const L = labels[lang];
+  const box = document.getElementById('calcResults');
+  box.style.display = 'block';
+  box.innerHTML = `
+    <b>${L.hoverTdb}:</b> ${r.Tdb.toFixed(2)} °C<br>
+    <b>${L.hoverTwb}:</b> ${r.Twb.toFixed(2)} °C<br>
+    <b>${L.hoverTdp}:</b> ${r.Tdp.toFixed(2)} °C<br>
+    <b>${L.hoverRH}:</b> ${(r.RH * 100).toFixed(1)} %<br>
+    <b>${L.hoverW}:</b> ${(r.W * 1000).toFixed(2)} g/kg<br>
+    <b>${L.hoverH}:</b> ${r.h.toFixed(2)} kJ/kg<br>
+    <b>${L.hoverV}:</b> ${r.v.toFixed(4)} m³/kg`;
+}
+
+function updatePointList() {
+  const list = document.getElementById('statePointList');
+  list.innerHTML = '';
+  statePoints.forEach((sp, i) => {
+    const col = COLORS[i % COLORS.length];
+    const item = document.createElement('div');
+    item.className = 'state-point-item';
+    item.innerHTML = `<span><span class="color-dot" style="background:${col}"></span>P${i + 1}: ${sp.Tdb.toFixed(1)}°C, ${(sp.RH * 100).toFixed(0)}%</span>
+      <button class="btn btn-danger btn-sm" onclick="removePoint(${i})">✕</button>`;
+    list.appendChild(item);
+  });
+}
+
+function removePoint(i) {
+  statePoints.splice(i, 1);
+  updatePointList();
+  redraw();
+}
+
+function clearPoints() {
+  statePoints = [];
+  showProcess = false;
+  document.getElementById('calcResults').style.display = 'none';
+  document.getElementById('processInfo').style.display = 'none';
+  updatePointList();
+  redraw();
+}
+
+function toggleProcess() {
+  showProcess = !showProcess;
+  redraw();
+}
+
+function updateProcessInfo() {
+  if (statePoints.length < 2) return;
+  const box = document.getElementById('processInfo');
+  box.style.display = 'block';
+  let html = '';
+  for (let i = 0; i < statePoints.length - 1; i++) {
+    const a = statePoints[i], b = statePoints[i + 1];
+    const dT = b.Tdb - a.Tdb, dW = (b.W - a.W) * 1000, dH = b.h - a.h;
+    html += `<b>P${i + 1}→P${i + 2}:</b> ΔT=${dT.toFixed(1)}°C, ΔW=${dW.toFixed(2)}g/kg, Δh=${dH.toFixed(1)}kJ/kg<br>`;
+  }
+  box.innerHTML = html;
+}
+
+// ============================================================
+//  Mouse Hover
+// ============================================================
+const hoverBox = document.getElementById('hoverInfo');
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX, my = (e.clientY - rect.top) * scaleY;
+
+  if (mx < CL || mx > CR || my < CT || my > CB) { hoverBox.style.display = 'none'; return; }
+
+  const Tdb = x2T(mx), W = y2W(my);
+  if (W < 0) { hoverBox.style.display = 'none'; return; }
+  const Wsat = Psychro.Wsat(Tdb, Patm);
+  if (W > Wsat) { hoverBox.style.display = 'none'; return; }
+
+  const RH = Psychro.relHumidity(Tdb, W, Patm);
+  const Twb = Psychro.wetBulbTemp(Tdb, W, Patm);
+  const Tdp = Psychro.dewPoint(W, Patm);
+  const h = Psychro.enthalpy(Tdb, W);
+  const v = Psychro.specVolume(Tdb, W, Patm);
+  const L = labels[lang];
+
+  hoverBox.innerHTML = `
+    <b>${L.hoverTdb}:</b> ${Tdb.toFixed(1)} °C<br>
+    <b>${L.hoverTwb}:</b> ${Twb.toFixed(1)} °C<br>
+    <b>${L.hoverTdp}:</b> ${Tdp.toFixed(1)} °C<br>
+    <b>${L.hoverRH}:</b> ${(RH * 100).toFixed(1)} %<br>
+    <b>${L.hoverW}:</b> ${(W * 1000).toFixed(1)} g/kg<br>
+    <b>${L.hoverH}:</b> ${h.toFixed(1)} kJ/kg<br>
+    <b>${L.hoverV}:</b> ${v.toFixed(3)} m³/kg`;
+
+  // Position the hover box
+  const boxX = e.clientX - rect.left + 15;
+  const boxY = e.clientY - rect.top - 10;
+  hoverBox.style.display = 'block';
+  hoverBox.style.left = (boxX + 220 > rect.width ? boxX - 230 : boxX) + 'px';
+  hoverBox.style.top = (boxY + 180 > rect.height ? boxY - 170 : boxY) + 'px';
+});
+
+canvas.addEventListener('mouseleave', () => { hoverBox.style.display = 'none'; });
+
+// ============================================================
+//  Init
+// ============================================================
+redraw();
+</script>
+</body>
+</html>
