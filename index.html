@@ -115,9 +115,9 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
   .mix-slider-container input[type="range"] { height: 30px; }
   .mix-slider-label { font-size: 13px; }
 
-  /* Chart on mobile — full width, scrollable */
-  .chart-container { padding: 6px; min-height: 300px; overflow: auto; -webkit-overflow-scrolling: touch; }
-  canvas { max-width: none; max-height: none; }
+  /* Chart on mobile — fit screen width */
+  .chart-container { padding: 4px; min-height: auto; overflow: hidden; }
+  canvas { max-width: 100%; height: auto; }
 
   .hover-info { font-size: 11px; min-width: 180px; padding: 6px 10px; line-height: 1.5; }
 
