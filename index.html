@@ -162,12 +162,26 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
         <div class="air-stream">
           <h4 id="lbl_airA">氣流 A</h4>
           <div class="input-row">
-            <input type="number" id="mixA_Tdb" value="20" step="0.1" onchange="calcMixing()">
-            <span class="unit">°C db</span>
+            <input type="number" id="mixA_val1" value="20" step="0.1" onchange="calcMixing()">
+            <select id="mixA_param1" onchange="calcMixing()">
+              <option value="Tdb" selected>°C db</option>
+              <option value="Twb">°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
           <div class="input-row">
-            <input type="number" id="mixA_Twb" value="14" step="0.1" onchange="calcMixing()">
-            <span class="unit">°C wb</span>
+            <input type="number" id="mixA_val2" value="14" step="0.1" onchange="calcMixing()">
+            <select id="mixA_param2" onchange="calcMixing()">
+              <option value="Tdb">°C db</option>
+              <option value="Twb" selected>°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
           <div class="input-row">
             <input type="number" id="mixA_flow" value="100" step="1" onchange="calcMixing()">
@@ -177,12 +191,26 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
         <div class="air-stream">
           <h4 id="lbl_airB">氣流 B</h4>
           <div class="input-row">
-            <input type="number" id="mixB_Tdb" value="35" step="0.1" onchange="calcMixing()">
-            <span class="unit">°C db</span>
+            <input type="number" id="mixB_val1" value="35" step="0.1" onchange="calcMixing()">
+            <select id="mixB_param1" onchange="calcMixing()">
+              <option value="Tdb" selected>°C db</option>
+              <option value="Twb">°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
           <div class="input-row">
-            <input type="number" id="mixB_Twb" value="24" step="0.1" onchange="calcMixing()">
-            <span class="unit">°C wb</span>
+            <input type="number" id="mixB_val2" value="24" step="0.1" onchange="calcMixing()">
+            <select id="mixB_param2" onchange="calcMixing()">
+              <option value="Tdb">°C db</option>
+              <option value="Twb" selected>°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
           <div class="input-row">
             <input type="number" id="mixB_flow" value="100" step="1" onchange="calcMixing()">
@@ -219,23 +247,51 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
         <div class="air-stream">
           <h4 id="lbl_inlet">進風</h4>
           <div class="input-row">
-            <input type="number" id="proc_in_Tdb" value="20" step="0.1" onchange="calcProcess()">
-            <span class="unit">°C db</span>
+            <input type="number" id="proc_in_val1" value="20" step="0.1" onchange="calcProcess()">
+            <select id="proc_in_param1" onchange="calcProcess()">
+              <option value="Tdb" selected>°C db</option>
+              <option value="Twb">°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
           <div class="input-row">
-            <input type="number" id="proc_in_Twb" value="14" step="0.1" onchange="calcProcess()">
-            <span class="unit">°C wb</span>
+            <input type="number" id="proc_in_val2" value="14" step="0.1" onchange="calcProcess()">
+            <select id="proc_in_param2" onchange="calcProcess()">
+              <option value="Tdb">°C db</option>
+              <option value="Twb" selected>°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
         </div>
         <div class="air-stream">
           <h4 id="lbl_outlet">出風</h4>
           <div class="input-row">
-            <input type="number" id="proc_out_Tdb" value="12" step="0.1" onchange="calcProcess()">
-            <span class="unit">°C db</span>
+            <input type="number" id="proc_out_val1" value="12" step="0.1" onchange="calcProcess()">
+            <select id="proc_out_param1" onchange="calcProcess()">
+              <option value="Tdb" selected>°C db</option>
+              <option value="Twb">°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
           <div class="input-row">
-            <input type="number" id="proc_out_Twb" value="11" step="0.1" onchange="calcProcess()">
-            <span class="unit">°C wb</span>
+            <input type="number" id="proc_out_val2" value="11" step="0.1" onchange="calcProcess()">
+            <select id="proc_out_param2" onchange="calcProcess()">
+              <option value="Tdb">°C db</option>
+              <option value="Twb" selected>°C wb</option>
+              <option value="Tdp">°C dp</option>
+              <option value="RH">% RH</option>
+              <option value="W">g/kg</option>
+              <option value="h">kJ/kg</option>
+            </select>
           </div>
         </div>
       </div>
@@ -470,6 +526,8 @@ function W2y(W) { return CB - (W / W_MAX) * CH; }
 function x2T(x) { return T_MIN + (x - CL) / CW * (T_MAX - T_MIN); }
 function y2W(y) { return (CB - y) / CH * W_MAX; }
 
+let activeTab = 'chart';
+
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid();
@@ -478,10 +536,15 @@ function redraw() {
   if (document.getElementById('chkH').checked) drawEnthalpyLines();
   if (document.getElementById('chkV').checked) drawVolumnLines();
   drawSaturationCurve();
-  drawStatePoints();
-  if (showProcess) drawProcessLines();
-  drawMixingPoints();
-  drawProcessPoints();
+  // Only draw relevant overlays for the active tab
+  if (activeTab === 'chart') {
+    drawStatePoints();
+    if (showProcess) drawProcessLines();
+  } else if (activeTab === 'mixing') {
+    drawMixingPoints();
+  } else if (activeTab === 'process') {
+    drawProcessPoints();
+  }
 }
 
 function drawGrid() {
@@ -853,6 +916,7 @@ function applyLang() {
 }
 
 function switchTab(tab) {
+  activeTab = tab;
   document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
   if (tab === 'chart') {
@@ -867,6 +931,7 @@ function switchTab(tab) {
     document.getElementById('panelProcess').classList.add('active');
     calcProcess();
   }
+  redraw();
 }
 
 function onPressureChange() {
@@ -978,18 +1043,23 @@ function calcMixing() {
   const alt = parseFloat(document.getElementById('mixAlt').value) || 0;
   const P = Psychro.pressureFromAlt(alt);
 
-  const tdbA = parseFloat(document.getElementById('mixA_Tdb').value);
-  const twbA = parseFloat(document.getElementById('mixA_Twb').value);
+  const paramA1 = document.getElementById('mixA_param1').value;
+  const valA1 = parseFloat(document.getElementById('mixA_val1').value);
+  const paramA2 = document.getElementById('mixA_param2').value;
+  const valA2 = parseFloat(document.getElementById('mixA_val2').value);
   const flowA = parseFloat(document.getElementById('mixA_flow').value);
 
-  const tdbB = parseFloat(document.getElementById('mixB_Tdb').value);
-  const twbB = parseFloat(document.getElementById('mixB_Twb').value);
+  const paramB1 = document.getElementById('mixB_param1').value;
+  const valB1 = parseFloat(document.getElementById('mixB_val1').value);
+  const paramB2 = document.getElementById('mixB_param2').value;
+  const valB2 = parseFloat(document.getElementById('mixB_val2').value);
   const flowB = parseFloat(document.getElementById('mixB_flow').value);
 
-  if ([tdbA, twbA, flowA, tdbB, twbB, flowB].some(isNaN)) return;
+  if ([valA1, valA2, flowA, valB1, valB2, flowB].some(isNaN)) return;
+  if (paramA1 === paramA2 || paramB1 === paramB2) return;
 
-  const stateA = Psychro.solve('Tdb', tdbA, 'Twb', twbA, P);
-  const stateB = Psychro.solve('Tdb', tdbB, 'Twb', twbB, P);
+  const stateA = Psychro.solve(paramA1, valA1, paramA2, valA2, P);
+  const stateB = Psychro.solve(paramB1, valB1, paramB2, valB2, P);
   if (!stateA || !stateB) return;
 
   const totalFlow = flowA + flowB;
@@ -1039,16 +1109,21 @@ function calcProcess() {
   const alt = parseFloat(document.getElementById('procAlt').value) || 0;
   const P = Psychro.pressureFromAlt(alt);
 
-  const tdbIn = parseFloat(document.getElementById('proc_in_Tdb').value);
-  const twbIn = parseFloat(document.getElementById('proc_in_Twb').value);
-  const tdbOut = parseFloat(document.getElementById('proc_out_Tdb').value);
-  const twbOut = parseFloat(document.getElementById('proc_out_Twb').value);
+  const paramIn1 = document.getElementById('proc_in_param1').value;
+  const valIn1 = parseFloat(document.getElementById('proc_in_val1').value);
+  const paramIn2 = document.getElementById('proc_in_param2').value;
+  const valIn2 = parseFloat(document.getElementById('proc_in_val2').value);
+  const paramOut1 = document.getElementById('proc_out_param1').value;
+  const valOut1 = parseFloat(document.getElementById('proc_out_val1').value);
+  const paramOut2 = document.getElementById('proc_out_param2').value;
+  const valOut2 = parseFloat(document.getElementById('proc_out_val2').value);
   const flow = parseFloat(document.getElementById('proc_flow').value);
 
-  if ([tdbIn, twbIn, tdbOut, twbOut, flow].some(isNaN)) return;
+  if ([valIn1, valIn2, valOut1, valOut2, flow].some(isNaN)) return;
+  if (paramIn1 === paramIn2 || paramOut1 === paramOut2) return;
 
-  const stateIn = Psychro.solve('Tdb', tdbIn, 'Twb', twbIn, P);
-  const stateOut = Psychro.solve('Tdb', tdbOut, 'Twb', twbOut, P);
+  const stateIn = Psychro.solve(paramIn1, valIn1, paramIn2, valIn2, P);
+  const stateOut = Psychro.solve(paramOut1, valOut1, paramOut2, valOut2, P);
   if (!stateIn || !stateOut) return;
 
   processState = { inlet: stateIn, outlet: stateOut };
