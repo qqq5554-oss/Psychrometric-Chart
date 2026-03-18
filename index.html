@@ -67,6 +67,67 @@ canvas { background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shado
 /* Select for mixing param */
 .input-row select { padding: 5px 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
 .input-row select:focus { outline: none; border-color: #1a237e; }
+
+/* ========== Mobile Responsive ========== */
+@media (max-width: 768px) {
+  body { height: auto; min-height: 100vh; }
+  header { padding: 8px 14px; }
+  header h1 { font-size: 16px; }
+  .main { flex-direction: column; overflow: visible; }
+  .sidebar { width: 100%; min-width: 100%; border-right: none; border-bottom: 1px solid #ddd; max-height: none; overflow-y: visible; }
+  .tab-nav button { padding: 12px 6px; font-size: 14px; }
+  .tab-content { padding: 12px; }
+  .tab-content.active { gap: 12px; }
+
+  /* Prevent zoom on focus — iOS needs 16px */
+  .form-group input, .form-group select,
+  .input-row input, .input-row select { font-size: 16px; padding: 10px 10px; }
+  .form-group select { padding: 10px 8px; }
+  .input-row input { width: 90px; }
+  .input-row select { padding: 8px 6px; font-size: 14px; }
+  .input-row .unit { font-size: 14px; }
+  .input-row { gap: 6px; margin-bottom: 8px; }
+
+  .btn { padding: 12px 18px; font-size: 15px; }
+  .btn-sm { padding: 8px 14px; font-size: 13px; }
+
+  .sidebar h3 { font-size: 15px; padding-bottom: 6px; margin-bottom: 6px; }
+  .air-stream h4 { font-size: 14px; }
+
+  .checkbox-group { font-size: 14px; padding: 4px 0; gap: 8px; }
+  .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; }
+
+  .results-box, .process-info { font-size: 13px; line-height: 1.8; padding: 10px; }
+  .result-row { font-size: 14px; padding: 5px 0; }
+  .mix-result h4, .process-result h4 { font-size: 14px; }
+
+  .state-point-list { max-height: 200px; }
+  .state-point-item { padding: 8px 6px; font-size: 14px; }
+  .state-point-item .color-dot { width: 12px; height: 12px; }
+
+  .form-group label { font-size: 13px; }
+  .mix-slider-container { padding: 12px 0; }
+  .mix-slider-container input[type="range"] { height: 30px; }
+  .mix-slider-label { font-size: 13px; }
+
+  /* Chart on mobile — full width, scrollable */
+  .chart-container { padding: 6px; min-height: 300px; overflow: auto; -webkit-overflow-scrolling: touch; }
+  canvas { max-width: none; max-height: none; }
+
+  .hover-info { font-size: 11px; min-width: 180px; padding: 6px 10px; line-height: 1.5; }
+
+  /* Air stream layout — keep side by side but tighter */
+  .air-streams-row { gap: 6px; }
+  .air-stream { padding: 8px; }
+}
+
+/* Extra small — iPhone SE etc */
+@media (max-width: 380px) {
+  header h1 { font-size: 14px; }
+  .tab-nav button { font-size: 13px; padding: 10px 4px; }
+  .input-row input { width: 70px; }
+  .air-streams-row { flex-direction: column; }
+}
 </style>
 </head>
 <body>
@@ -583,14 +644,20 @@ function drawSaturationCurve() {
   ctx.save();
   ctx.strokeStyle = '#0d47a1'; ctx.lineWidth = 2;
   ctx.beginPath();
-  let first = true;
+  let first = true, lastX, lastY;
   for (let T = T_MIN; T <= T_MAX; T += 0.5) {
     const W = Psychro.Wsat(T, Patm);
     if (W > W_MAX) continue;
     const x = T2x(T), y = W2y(W);
     if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+    lastX = x; lastY = y;
   }
   ctx.stroke();
+  // Label 100%
+  if (lastX !== undefined) {
+    ctx.fillStyle = '#0d47a1'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('100%', lastX + 3, lastY - 3);
+  }
   ctx.restore();
 }
 
@@ -1236,6 +1303,56 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mouseleave', () => { hoverBox.style.display = 'none'; });
+
+// Touch support for mobile
+function handleTouch(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+  const mx = (touch.clientX - rect.left) * scaleX, my = (touch.clientY - rect.top) * scaleY;
+
+  if (mx < CL || mx > CR || my < CT || my > CB) { hoverBox.style.display = 'none'; return; }
+
+  const Tdb = x2T(mx), W = y2W(my);
+  if (W < 0) { hoverBox.style.display = 'none'; return; }
+  const Wsat = Psychro.Wsat(Tdb, Patm);
+  if (W > Wsat) { hoverBox.style.display = 'none'; return; }
+
+  const RH = Psychro.relHumidity(Tdb, W, Patm);
+  const Twb = Psychro.wetBulbTemp(Tdb, W, Patm);
+  const Tdp = Psychro.dewPoint(W, Patm);
+  const h = Psychro.enthalpy(Tdb, W);
+  const v = Psychro.specVolume(Tdb, W, Patm);
+  const vp = Psychro.vaporPressure(W, Patm);
+  const ppmw = Psychro.ppmW(W);
+  const ppmv = Psychro.ppmV(W);
+  const gm3 = Psychro.absHumidity(W, v);
+  const L = labels[lang];
+
+  hoverBox.innerHTML = `
+    <b>${L.hoverTdb}:</b> ${Tdb.toFixed(1)} °C<br>
+    <b>${L.hoverTwb}:</b> ${Twb.toFixed(1)} °C<br>
+    <b>${L.hoverTdp}:</b> ${Tdp.toFixed(1)} °C<br>
+    <b>${L.hoverRH}:</b> ${(RH * 100).toFixed(1)} %<br>
+    <b>${L.hoverW}:</b> ${(W * 1000).toFixed(1)} g/kg<br>
+    <b>${L.hoverH}:</b> ${h.toFixed(1)} kJ/kg<br>
+    <b>${L.hoverV}:</b> ${v.toFixed(3)} m³/kg<br>
+    <b>${L.hoverVP}:</b> ${vp.toFixed(3)} kPa<br>
+    <b>${L.hoverPPMw}:</b> ${ppmw.toFixed(0)}<br>
+    <b>${L.hoverPPMv}:</b> ${ppmv.toFixed(0)}<br>
+    <b>${L.hoverGM3}:</b> ${gm3.toFixed(1)} g/m³`;
+
+  const boxX = touch.clientX - rect.left;
+  const boxY = touch.clientY - rect.top - 120;
+  hoverBox.style.display = 'block';
+  hoverBox.style.left = Math.max(0, Math.min(boxX - 90, rect.width - 200)) + 'px';
+  hoverBox.style.top = (boxY < 0 ? touch.clientY - rect.top + 20 : boxY) + 'px';
+}
+
+canvas.addEventListener('touchstart', handleTouch, { passive: false });
+canvas.addEventListener('touchmove', handleTouch, { passive: false });
+canvas.addEventListener('touchend', () => { setTimeout(() => { hoverBox.style.display = 'none'; }, 1500); });
 
 // ============================================================
 //  Init
