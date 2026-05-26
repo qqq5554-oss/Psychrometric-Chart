@@ -305,6 +305,99 @@ body {
   font-size: 13px;
 }
 
+/* ── Flow Quality ── */
+.fq-body { padding: 16px; }
+.fq-score-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.fq-score {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.fq-score.excellent { background: #1a7a3a; }
+.fq-score.good { background: #2277b8; }
+.fq-score.acceptable { background: #c89a10; }
+.fq-score.poor { background: #c84010; }
+.fq-grade {
+  font-size: 20px; font-weight: 800;
+  line-height: 1.2;
+}
+.fq-verdict {
+  font-size: 12px; color: #9a7a7a;
+  margin-top: 2px;
+}
+.fq-meter-wrap {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.fq-meter-label {
+  font-size: 11px; font-weight: 700;
+  color: #9a7a7a; letter-spacing: .5px;
+  white-space: nowrap;
+  min-width: 100px;
+}
+.fq-meter {
+  flex: 1; height: 10px;
+  background: #f0e0e0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.fq-meter-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width .4s ease, background .4s ease;
+}
+.fq-meter-val {
+  font-size: 14px; font-weight: 700;
+  min-width: 48px; text-align: right;
+}
+.fq-stats {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; margin-bottom: 14px;
+}
+.fq-stat {
+  background: #fdf8f8;
+  border: 1px solid #f0e0e0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+}
+.fq-stat-label { font-size: 9px; font-weight: 700; color: #9a7a7a; letter-spacing: .8px; text-transform: uppercase; }
+.fq-stat-val { font-size: 18px; font-weight: 700; color: #8C1515; margin-top: 2px; }
+.fq-stat-unit { font-size: 9px; color: #bba0a0; }
+.fq-checks { display: flex; flex-direction: column; gap: 6px; }
+.fq-check {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.fq-check.pass { background: #eafaee; color: #1a6a2e; }
+.fq-check.warn { background: #fff8e8; color: #8a6a10; }
+.fq-check.fail { background: #fdeeed; color: #a83020; }
+.fq-check-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.fq-check-text { flex: 1; }
+.fq-extreme-tag {
+  display: inline-block;
+  font-size: 9px; font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.fq-extreme-tag.high { background: #fdeeed; color: #c84010; }
+.fq-extreme-tag.low { background: #e8f0ff; color: #2255a8; }
+.fq-extreme-tag.neg { background: #f0d0d0; color: #8a2020; }
+
 /* ── Bottom sheet ── */
 .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100; align-items: flex-end; }
 .overlay.show { display: flex; }
@@ -359,6 +452,7 @@ body {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body { background: #fff; }
   .tool-nav, .topbar, #cfgSection, #progSection, #heatSection, .action-row, .tap-hint, .overlay, .spacer { display: none !important; }
+  #fqSection { display: block !important; break-inside: avoid; }
   .section { margin: 0 0 10px; border-radius: 6px; border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
   .svg-scroll { overflow: visible; padding: 8px; }
   .svg-scroll svg { max-width: 100%; height: auto; }
@@ -599,6 +693,27 @@ body {
   </div>
 </div>
 
+<!-- Flow Quality Analysis -->
+<div class="section" id="fqSection" style="display:none">
+  <div class="sec-head">🔍 流場品質分析 Flow Quality</div>
+  <div class="fq-body">
+    <div class="fq-score-row">
+      <div class="fq-score" id="fqScore">—</div>
+      <div>
+        <div class="fq-grade" id="fqGrade">—</div>
+        <div class="fq-verdict" id="fqVerdict"></div>
+      </div>
+    </div>
+    <div class="fq-meter-wrap">
+      <div class="fq-meter-label">Uniformity Index</div>
+      <div class="fq-meter"><div class="fq-meter-fill" id="fqMeter" style="width:0%"></div></div>
+      <div class="fq-meter-val" id="fqUIVal">—</div>
+    </div>
+    <div class="fq-stats" id="fqStats"></div>
+    <div class="fq-checks" id="fqChecks"></div>
+  </div>
+</div>
+
 <div class="spacer"></div>
 
 <!-- Footer -->
@@ -814,6 +929,7 @@ function generate() {
   document.getElementById('heatSection').style.display = '';
   document.getElementById('progSection').style.display = '';
   document.getElementById('resSection').style.display  = '';
+  document.getElementById('fqSection').style.display   = '';
   document.getElementById('tcnt').textContent = pts.length;
   setTimeout(function() {
     document.getElementById('diagSection').scrollIntoView({ behavior: 'smooth' });
@@ -1020,13 +1136,13 @@ function savePt() {
   for (var i = 0; i < pts.length; i++) {
     if (pts[i].id === activePtId) { pts[i].val = isNaN(v) ? null : v; break; }
   }
-  closeSheet(); drawSVG(); updateResults(); updateHeatmap();
+  closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
 }
 function clearPt() {
   for (var i = 0; i < pts.length; i++) {
     if (pts[i].id === activePtId) { pts[i].val = null; break; }
   }
-  closeSheet(); drawSVG(); updateResults(); updateHeatmap();
+  closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
 }
 document.getElementById('overlay').onclick = function(e) {
   if (e.target === this) closeSheet();
@@ -1105,7 +1221,12 @@ function updateResults() {
       var devStr = (dev>=0?'+':'')+dev.toFixed(1)+'%';
       var devCls = Math.abs(dev)>20?'c-warn':Math.abs(dev)>10?'':'c-ok';
       var note2 = found.ms===mx && n===1 ? '' : found.ms===mx ? '▲ 最大' : found.ms===mn ? '▼ 最小' : '';
-      rows += '<tr><td>'+p.id+'</td><td class="c-acc">'+p.label+'</td><td style="font-size:10px;color:#9a7a7a">'+p.desc+'</td><td style="font-weight:700">'+d(found.ms)+' '+ul+'</td><td class="'+devCls+'">'+devStr+'</td><td style="font-size:10px;color:#9a7a7a">'+note2+'</td></tr>';
+      var extTag = '';
+      if (extremePts[p.id]) {
+        var et = extremePts[p.id];
+        extTag = et==='neg' ? ' <span class="fq-extreme-tag neg">反向</span>' : et==='high' ? ' <span class="fq-extreme-tag high">異常高</span>' : ' <span class="fq-extreme-tag low">異常低</span>';
+      }
+      rows += '<tr><td>'+p.id+'</td><td class="c-acc">'+p.label+'</td><td style="font-size:10px;color:#9a7a7a">'+p.desc+'</td><td style="font-weight:700">'+d(found.ms)+' '+ul+extTag+'</td><td class="'+devCls+'">'+devStr+'</td><td style="font-size:10px;color:#9a7a7a">'+note2+'</td></tr>';
     }
   }
   document.getElementById('sumBody').innerHTML = rows;
@@ -1135,7 +1256,7 @@ function exportPDF() {
 // ── Clear all ──────────────────────────────────────────────────
 function clearAll() {
   for (var i = 0; i < pts.length; i++) pts[i].val = null;
-  drawSVG(); updateResults(); updateHeatmap();
+  drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
 }
 
 // ── Heatmap ────────────────────────────────────────────────────
@@ -1262,6 +1383,12 @@ function heatRectSVG(filled, vmin, vmax, GRID, vw, BAR_W, BAR_GAP, ul) {
     if (pts[i].val === null) continue;
     var px = ox + (pts[i].xmm/W)*drawW;
     var py = oy + (pts[i].ymm/H)*drawH;
+    var ext = extremePts[pts[i].id];
+    if (ext) {
+      var ec = ext==='neg'?'#e03030':ext==='high'?'#ff6600':'#2266cc';
+      s += '<circle cx="'+px+'" cy="'+py+'" r="14" fill="none" stroke="'+ec+'" stroke-width="2.5" stroke-dasharray="4,2" opacity="0.85"/>';
+      s += '<text x="'+(px+11)+'" y="'+(py-9)+'" font-size="11" fill="'+ec+'" font-weight="bold" font-family="sans-serif">!</text>';
+    }
     s += '<circle cx="'+px+'" cy="'+py+'" r="9" fill="rgba(0,0,0,.35)"/>';
     s += '<circle cx="'+px+'" cy="'+py+'" r="8" fill="none" stroke="#fff" stroke-width="1.4"/>';
     s += '<text x="'+px+'" y="'+(py+3)+'" text-anchor="middle" font-size="7" fill="#fff" font-weight="bold" font-family="sans-serif">'+pts[i].val.toFixed(1)+'</text>';
@@ -1301,6 +1428,12 @@ function heatCircSVG(filled, vmin, vmax, GRID, vw, BAR_W, BAR_GAP, ul) {
     if (pts[i].val === null) continue;
     var px = cx + (pts[i].xmm/D-0.5)*2*RADIUS;
     var py = cy + (pts[i].ymm/D-0.5)*2*RADIUS;
+    var ext = extremePts[pts[i].id];
+    if (ext) {
+      var ec = ext==='neg'?'#e03030':ext==='high'?'#ff6600':'#2266cc';
+      s += '<circle cx="'+px+'" cy="'+py+'" r="13" fill="none" stroke="'+ec+'" stroke-width="2.5" stroke-dasharray="4,2" opacity="0.85"/>';
+      s += '<text x="'+(px+10)+'" y="'+(py-8)+'" font-size="11" fill="'+ec+'" font-weight="bold" font-family="sans-serif">!</text>';
+    }
     s += '<circle cx="'+px+'" cy="'+py+'" r="8" fill="rgba(0,0,0,.35)"/>';
     s += '<circle cx="'+px+'" cy="'+py+'" r="7" fill="none" stroke="#fff" stroke-width="1.4"/>';
     s += '<text x="'+px+'" y="'+(py+3)+'" text-anchor="middle" font-size="7" fill="#fff" font-weight="bold" font-family="sans-serif">'+pts[i].val.toFixed(1)+'</text>';
@@ -1308,6 +1441,189 @@ function heatCircSVG(filled, vmin, vmax, GRID, vw, BAR_W, BAR_GAP, ul) {
   s += buildColorbar(cx+RADIUS+BAR_GAP, cy-RADIUS, BAR_W, RADIUS*2, vmin, vmax, ul);
   s += '</svg>';
   return s;
+}
+
+// ── Flow Quality Analysis ──────────────────────────────────────
+
+var extremePts = {};
+
+function updateFlowQuality() {
+  var isFpm = getUnit() === 'fpm';
+  var filled = [];
+  for (var i = 0; i < pts.length; i++) {
+    if (pts[i].val !== null) {
+      filled.push({ pt: pts[i], ms: isFpm ? pts[i].val * 0.00508 : pts[i].val });
+    }
+  }
+  extremePts = {};
+  var fqEl = document.getElementById('fqSection');
+  if (filled.length < 2) {
+    document.getElementById('fqScore').className = 'fq-score';
+    document.getElementById('fqScore').textContent = '—';
+    document.getElementById('fqGrade').textContent = '需要更多數據';
+    document.getElementById('fqVerdict').textContent = '至少需要 2 個量測點';
+    document.getElementById('fqMeter').style.width = '0%';
+    document.getElementById('fqUIVal').textContent = '—';
+    document.getElementById('fqStats').innerHTML = '';
+    document.getElementById('fqChecks').innerHTML = '';
+    return;
+  }
+
+  var n = filled.length;
+  var msList = filled.map(function(v) { return v.ms; });
+  var sum = 0;
+  for (var i = 0; i < n; i++) sum += msList[i];
+  var avg = sum / n;
+
+  // Standard deviation
+  var sqSum = 0;
+  for (var i = 0; i < n; i++) sqSum += Math.pow(msList[i] - avg, 2);
+  var stdDev = Math.sqrt(sqSum / n);
+  var cv = avg > 0 ? (stdDev / avg * 100) : 0;
+  var ui = avg > 0 ? Math.max(0, Math.min(1, 1 - stdDev / avg)) : 0;
+
+  // Grade
+  var grade, gradeClass, gradeZh;
+  if (ui >= 0.85)      { grade = 'Excellent'; gradeClass = 'excellent'; gradeZh = '優異流場'; }
+  else if (ui >= 0.70) { grade = 'Good';      gradeClass = 'good';      gradeZh = '良好流場'; }
+  else if (ui >= 0.50) { grade = 'Acceptable'; gradeClass = 'acceptable'; gradeZh = '尚可接受'; }
+  else                 { grade = 'Poor Flow';  gradeClass = 'poor';      gradeZh = '流場不佳'; }
+
+  // Checks
+  var checks = [];
+  var deductions = 0;
+
+  // 1. Negative / Near-zero
+  for (var i = 0; i < filled.length; i++) {
+    var p = filled[i].pt, v = filled[i].ms;
+    if (v < 0) {
+      checks.push({ level: 'fail', text: '反向氣流 Reverse airflow at ' + p.label + ' (' + v.toFixed(2) + ' m/s)，可能存在 swirl 或回風' });
+      extremePts[p.id] = 'neg';
+      deductions += 15;
+    } else if (v < avg * 0.1 && avg > 0) {
+      checks.push({ level: 'warn', text: '接近零速 Near-zero at ' + p.label + ' (' + v.toFixed(2) + ' m/s)，可能有渦流或死區' });
+      extremePts[p.id] = 'low';
+      deductions += 5;
+    }
+  }
+
+  // 2. Extreme points
+  for (var i = 0; i < filled.length; i++) {
+    var p = filled[i].pt, v = filled[i].ms;
+    if (extremePts[p.id]) continue;
+    if (v > avg * 1.5) {
+      checks.push({ level: 'warn', text: '異常高速 ' + p.label + ': ' + v.toFixed(2) + ' m/s (>' + (avg * 1.5).toFixed(2) + ' = 1.5x 均值)，可能為 jet effect' });
+      extremePts[p.id] = 'high';
+      deductions += 5;
+    } else if (v < avg * 0.5 && v >= 0) {
+      checks.push({ level: 'warn', text: '異常低速 ' + p.label + ': ' + v.toFixed(2) + ' m/s (<' + (avg * 0.5).toFixed(2) + ' = 0.5x 均值)，可能為 dead zone' });
+      extremePts[p.id] = 'low';
+      deductions += 5;
+    }
+  }
+
+  // 3. Symmetry analysis
+  if (method !== 'circ') {
+    var leftV = [], rightV = [], topV = [], bottomV = [];
+    var midX = dW / 2, midY = dH / 2;
+    for (var i = 0; i < filled.length; i++) {
+      var xmm = filled[i].pt.xmm, ymm = filled[i].pt.ymm, v = filled[i].ms;
+      if (xmm < midX) leftV.push(v); else rightV.push(v);
+      if (ymm < midY) topV.push(v); else bottomV.push(v);
+    }
+    function arrAvg(a) { if (!a.length) return 0; var s=0; for(var i=0;i<a.length;i++) s+=a[i]; return s/a.length; }
+    var lAvg = arrAvg(leftV), rAvg = arrAvg(rightV);
+    var tAvg = arrAvg(topV), bAvg = arrAvg(bottomV);
+    if (leftV.length && rightV.length && avg > 0) {
+      var lrDiff = Math.abs(lAvg - rAvg) / avg * 100;
+      if (lrDiff > 20) {
+        checks.push({ level: 'warn', text: '左右不對稱 L/R asymmetry ' + lrDiff.toFixed(1) + '%（左 ' + lAvg.toFixed(2) + ' / 右 ' + rAvg.toFixed(2) + ' m/s），可能上游有彎頭或風門' });
+        deductions += 10;
+      } else {
+        checks.push({ level: 'pass', text: '左右對稱 L/R symmetry OK（差異 ' + lrDiff.toFixed(1) + '%）' });
+      }
+    }
+    if (topV.length && bottomV.length && avg > 0) {
+      var tbDiff = Math.abs(tAvg - bAvg) / avg * 100;
+      if (tbDiff > 20) {
+        checks.push({ level: 'warn', text: '上下不對稱 T/B asymmetry ' + tbDiff.toFixed(1) + '%（上 ' + tAvg.toFixed(2) + ' / 下 ' + bAvg.toFixed(2) + ' m/s），可能上游有變徑或擋板' });
+        deductions += 10;
+      } else {
+        checks.push({ level: 'pass', text: '上下對稱 T/B symmetry OK（差異 ' + tbDiff.toFixed(1) + '%）' });
+      }
+    }
+  } else {
+    var hV = [], vV = [];
+    for (var i = 0; i < filled.length; i++) {
+      var lbl = filled[i].pt.label;
+      if (lbl.charAt(0) === 'H') hV.push(filled[i].ms);
+      else if (lbl.charAt(0) === 'V') vV.push(filled[i].ms);
+    }
+    function arrAvg(a) { if (!a.length) return 0; var s=0; for(var i=0;i<a.length;i++) s+=a[i]; return s/a.length; }
+    if (hV.length && vV.length && avg > 0) {
+      var hvDiff = Math.abs(arrAvg(hV) - arrAvg(vV)) / avg * 100;
+      if (hvDiff > 20) {
+        checks.push({ level: 'warn', text: '水平/垂直不對稱 H/V asymmetry ' + hvDiff.toFixed(1) + '%，可能存在 swirl 或旋流' });
+        deductions += 10;
+      } else {
+        checks.push({ level: 'pass', text: '水平/垂直對稱 H/V symmetry OK（差異 ' + hvDiff.toFixed(1) + '%）' });
+      }
+    }
+  }
+
+  // Uniformity check
+  if (ui >= 0.85) {
+    checks.unshift({ level: 'pass', text: '速度均勻性 Excellent（UI = ' + (ui*100).toFixed(1) + '%），流場穩定可靠' });
+  } else if (ui >= 0.70) {
+    checks.unshift({ level: 'pass', text: '速度均勻性 Good（UI = ' + (ui*100).toFixed(1) + '%），數據可信' });
+  } else if (ui >= 0.50) {
+    checks.unshift({ level: 'warn', text: '速度均勻性 Acceptable（UI = ' + (ui*100).toFixed(1) + '%），建議確認量測位置是否合適' });
+  } else {
+    checks.unshift({ level: 'fail', text: '速度均勻性 Poor（UI = ' + (ui*100).toFixed(1) + '%），流場極不均勻，數據可信度低' });
+  }
+
+  // Overall score
+  var score = Math.round(Math.max(0, Math.min(100, ui * 100 - deductions)));
+
+  // Render
+  var scoreEl = document.getElementById('fqScore');
+  scoreEl.textContent = score;
+  scoreEl.className = 'fq-score ' + gradeClass;
+
+  document.getElementById('fqGrade').textContent = grade + ' — ' + gradeZh;
+  document.getElementById('fqGrade').style.color = gradeClass === 'excellent' ? '#1a7a3a' : gradeClass === 'good' ? '#2277b8' : gradeClass === 'acceptable' ? '#c89a10' : '#c84010';
+
+  var verdicts = {
+    excellent: '此次 Traverse 量測結果可信，流場品質優異',
+    good: '此次 Traverse 量測結果可信，流場品質良好',
+    acceptable: '此次量測結果尚可接受，建議檢查上游擾動源',
+    poor: '此次量測結果可信度偏低，建議更換量測位置或排除上游干擾'
+  };
+  document.getElementById('fqVerdict').textContent = verdicts[gradeClass];
+
+  // Meter
+  var meterFill = document.getElementById('fqMeter');
+  meterFill.style.width = (ui * 100).toFixed(1) + '%';
+  meterFill.style.background = gradeClass === 'excellent' ? '#1a7a3a' : gradeClass === 'good' ? '#2277b8' : gradeClass === 'acceptable' ? '#c89a10' : '#c84010';
+  document.getElementById('fqUIVal').textContent = (ui * 100).toFixed(1) + '%';
+  document.getElementById('fqUIVal').style.color = meterFill.style.background;
+
+  // Stats
+  function d(ms) { return isFpm ? (ms/0.00508).toFixed(2) : ms.toFixed(2); }
+  var ul = getUL();
+  document.getElementById('fqStats').innerHTML =
+    '<div class="fq-stat"><div class="fq-stat-label">Std Dev</div><div class="fq-stat-val">' + d(stdDev) + '</div><div class="fq-stat-unit">' + ul + '</div></div>' +
+    '<div class="fq-stat"><div class="fq-stat-label">CV</div><div class="fq-stat-val">' + cv.toFixed(1) + '</div><div class="fq-stat-unit">%</div></div>' +
+    '<div class="fq-stat"><div class="fq-stat-label">UI</div><div class="fq-stat-val">' + (ui * 100).toFixed(1) + '</div><div class="fq-stat-unit">%</div></div>';
+
+  // Checks
+  var checksHtml = '';
+  for (var i = 0; i < checks.length; i++) {
+    var c = checks[i];
+    var icon = c.level === 'pass' ? '✓' : c.level === 'warn' ? '⚠' : '✗';
+    checksHtml += '<div class="fq-check ' + c.level + '"><span class="fq-check-icon">' + icon + '</span><div class="fq-check-text">' + c.text + '</div></div>';
+  }
+  document.getElementById('fqChecks').innerHTML = checksHtml;
 }
 
 // Init
