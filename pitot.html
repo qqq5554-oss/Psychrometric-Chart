@@ -451,7 +451,8 @@ body {
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body { background: #fff; }
-  .tool-nav, .topbar, #cfgSection, #progSection, #heatSection, .action-row, .tap-hint, .overlay, .spacer { display: none !important; }
+  .tool-nav, .topbar, #cfgSection, #progSection, .action-row, .tap-hint, .overlay, .spacer { display: none !important; }
+  #heatSection { display: block !important; break-inside: avoid; }
   #fqSection { display: block !important; break-inside: avoid; }
   .section { margin: 0 0 10px; border-radius: 6px; border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
   .svg-scroll { overflow: visible; padding: 8px; }
