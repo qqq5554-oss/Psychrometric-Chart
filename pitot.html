@@ -535,11 +535,11 @@ body {
 .pb-lbl { background: #fdf0f0; color: #8C1515; font-weight: 600; width: 12%; white-space: nowrap; }
 .pb-val { color: #333; width: 38%; }
 #pdfSignature { display: none; }
-.sig-row { display: flex; gap: 40px; justify-content: center; padding: 6px 20px; }
-.sig-block { flex: 1; max-width: 200px; text-align: center; }
+.sig-row { display: flex; gap: 60px; justify-content: center; padding: 8px 40px; align-items: flex-end; }
+.sig-block { width: 200px; text-align: center; }
 .sig-label { font-size: 9px; color: #666; font-weight: 600; margin-bottom: 2px; }
 .sig-name { font-size: 10px; font-weight: 700; color: #333; min-height: 14px; }
-.sig-line { border-bottom: 1px solid #999; margin: 12px 0 2px; }
+.sig-line { border-bottom: 1px solid #999; margin: 14px 0 2px; }
 .sig-sub { font-size: 7px; color: #999; }
 </style>
 </head>
@@ -604,6 +604,7 @@ body {
     </div>
     <div class="sig-block">
       <div class="sig-label">審核人員</div>
+      <div class="sig-name">&nbsp;</div>
       <div class="sig-line"></div>
       <div class="sig-sub">簽名 / 日期</div>
     </div>
