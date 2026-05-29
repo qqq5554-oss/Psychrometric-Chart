@@ -1212,20 +1212,24 @@ function buildRectSVG() {
     s += '<text x="'+(ox-8)+'" y="'+(ty+4)+'" text-anchor="end" font-size="10" fill="#888" font-family="sans-serif">'+Math.round(yFracs[i]*H)+'</text>';
   }
 
+  var lblFs = Math.max(6, Math.min(9, PR * 0.45));
+  var valFs = Math.max(7, Math.min(12, PR * 0.55));
+  var unitFs = Math.max(5, Math.min(8, PR * 0.35));
+  var dashFs = Math.max(8, Math.min(14, PR * 0.65));
   for (var i = 0; i < pts.length; i++) {
     var p = pts[i];
     var px = ox + (p.xmm/W)*drawW;
     var py = oy + (p.ymm/H)*drawH;
     var has = p.val !== null;
     s += '<g id="pt'+p.id+'" style="cursor:pointer">';
-    s += '<circle cx="'+px+'" cy="'+py+'" r="'+(PR+4)+'" fill="rgba(0,0,0,0.05)"/>';
-    s += '<circle cx="'+px+'" cy="'+py+'" r="'+PR+'" fill="'+(has?'#fdf0f0':'#fff')+'" stroke="'+(has?'#8C1515':'#c8d8c8')+'" stroke-width="'+(has?2.5:1.8)+'"/>';
-    s += '<text x="'+px+'" y="'+(py-PR*0.24)+'" text-anchor="middle" font-size="9" fill="'+(has?'#A83030':'#c0c8c0')+'" font-family="sans-serif">'+p.label+'</text>';
+    s += '<circle cx="'+px+'" cy="'+py+'" r="'+(PR+3)+'" fill="rgba(0,0,0,0.05)"/>';
+    s += '<circle cx="'+px+'" cy="'+py+'" r="'+PR+'" fill="'+(has?'#fdf0f0':'#fff')+'" stroke="'+(has?'#8C1515':'#c8d8c8')+'" stroke-width="'+(has?2:1.5)+'"/>';
+    s += '<text x="'+px+'" y="'+(py-PR*0.24)+'" text-anchor="middle" font-size="'+lblFs+'" fill="'+(has?'#A83030':'#c0c8c0')+'" font-family="sans-serif">'+p.label+'</text>';
     if (has) {
-      s += '<text x="'+px+'" y="'+(py+PR*0.34)+'" text-anchor="middle" font-size="12" fill="#8C1515" font-weight="bold" font-family="sans-serif">'+p.val.toFixed(2)+'</text>';
-      s += '<text x="'+px+'" y="'+(py+PR*0.74)+'" text-anchor="middle" font-size="8" fill="#9a7a7a" font-family="sans-serif">'+getUL()+'</text>';
+      s += '<text x="'+px+'" y="'+(py+PR*0.34)+'" text-anchor="middle" font-size="'+valFs+'" fill="#8C1515" font-weight="bold" font-family="sans-serif">'+p.val.toFixed(1)+'</text>';
+      s += '<text x="'+px+'" y="'+(py+PR*0.74)+'" text-anchor="middle" font-size="'+unitFs+'" fill="#9a7a7a" font-family="sans-serif">'+getUL()+'</text>';
     } else {
-      s += '<text x="'+px+'" y="'+(py+PR*0.42)+'" text-anchor="middle" font-size="14" fill="#ddd" font-family="sans-serif">—</text>';
+      s += '<text x="'+px+'" y="'+(py+PR*0.42)+'" text-anchor="middle" font-size="'+dashFs+'" fill="#ddd" font-family="sans-serif">—</text>';
     }
     s += '</g>';
   }
@@ -1313,21 +1317,23 @@ function closeSheet() {
   activePtId = -1;
 }
 function savePt() {
-  var scrollY = window.scrollY;
   var v = parseFloat(document.getElementById('bigInput').value);
   for (var i = 0; i < pts.length; i++) {
     if (pts[i].id === activePtId) { pts[i].val = isNaN(v) ? null : v; break; }
   }
   closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
-  setTimeout(function() { window.scrollTo(0, scrollY); }, 50);
+  setTimeout(function() {
+    document.getElementById('diagSection').scrollIntoView({ behavior: 'instant', block: 'start' });
+  }, 80);
 }
 function clearPt() {
-  var scrollY = window.scrollY;
   for (var i = 0; i < pts.length; i++) {
     if (pts[i].id === activePtId) { pts[i].val = null; break; }
   }
   closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
-  setTimeout(function() { window.scrollTo(0, scrollY); }, 50);
+  setTimeout(function() {
+    document.getElementById('diagSection').scrollIntoView({ behavior: 'instant', block: 'start' });
+  }, 80);
 }
 document.getElementById('overlay').onclick = function(e) {
   if (e.target === this) closeSheet();
