@@ -451,7 +451,7 @@ body {
 @media print {
   @page { size: A4; margin: 6mm 7mm 5mm 7mm; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { background: #fff; font-size: 8px; display: grid !important; grid-template-columns: 1fr 1fr; gap: 3px 5px; align-items: start; }
+  body { background: #fff; font-size: 8px; display: grid !important; grid-template-columns: 55fr 45fr; gap: 3px 5px; align-items: start; }
   .tool-nav, .topbar, #cfgSection, #progSection, .action-row, .tap-hint, .overlay, .spacer, .footer-wrap { display: none !important; }
 
   /* Banner full width */
@@ -1052,7 +1052,7 @@ function buildRectSVG() {
   var nx = xFracs.length, ny = yFracs.length;
   var PR = Math.min(22, Math.max(9, Math.floor(Math.min(drawW/nx, drawH/ny) * 0.34)));
 
-  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'">';
+  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'" viewBox="0 0 '+SW+' '+SH+'">';
   s += '<rect width="'+SW+'" height="'+SH+'" fill="#fdf8f8"/>';
   s += '<rect x="'+ox+'" y="'+oy+'" width="'+drawW+'" height="'+drawH+'" fill="#fff"/>';
 
@@ -1134,7 +1134,7 @@ function buildCircSVG() {
   var nPts = fracs.length;
   var PR = Math.min(16, Math.max(7, Math.floor(RADIUS * 0.09)));
 
-  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'">';
+  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'" viewBox="0 0 '+SW+' '+SH+'">';
   s += '<rect width="'+SW+'" height="'+SH+'" fill="#fdf8f8"/>';
   s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+RADIUS+'" fill="rgba(140,21,21,0.04)"/>';
   s += '<line x1="'+(cx-RADIUS-10)+'" y1="'+cy+'" x2="'+(cx+RADIUS+10)+'" y2="'+cy+'" stroke="rgba(140,21,21,0.2)" stroke-width="1.5"/>';
@@ -1465,7 +1465,7 @@ function heatRectSVG(filled, vmin, vmax, GRID, vw, BAR_W, BAR_GAP, ul) {
   var ox = ML, oy = MT;
   var cW = drawW/GRID, cH = drawH/GRID;
 
-  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'">';
+  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'" viewBox="0 0 '+SW+' '+SH+'">';
   s += '<rect width="'+SW+'" height="'+SH+'" fill="#fdf8f8"/>';
   for (var r = 0; r < GRID; r++) {
     for (var c = 0; c < GRID; c++) {
@@ -1506,7 +1506,7 @@ function heatCircSVG(filled, vmin, vmax, GRID, vw, BAR_W, BAR_GAP, ul) {
   var cx = ML+RADIUS, cy = MT+RADIUS;
   var cS = drawD/GRID;
 
-  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'">';
+  var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'" viewBox="0 0 '+SW+' '+SH+'">';
   s += '<rect width="'+SW+'" height="'+SH+'" fill="#fdf8f8"/>';
   for (var r = 0; r < GRID; r++) {
     for (var c = 0; c < GRID; c++) {
