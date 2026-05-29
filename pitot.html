@@ -511,8 +511,8 @@ body {
   .pb-info { font-size: 7.5px !important; }
   .pb-info td { padding: 1px 4px !important; }
 
-  /* Signature — tight, no page break */
-  #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 5; margin: 0; padding: 2px 0; page-break-before: avoid; }
+  /* Signature — tight, follows summary */
+  #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 5; margin: 0; padding: 0; }
   .sig-row { padding: 2px 40px !important; gap: 60px !important; }
   .sig-label { font-size: 8px !important; }
   .sig-name { font-size: 9px !important; min-height: 10px !important; }
@@ -555,12 +555,16 @@ body {
   #noteDisp { padding: 1px 6px 0 !important; font-size: 6px !important; }
   .validation-row { font-size: 6.5px !important; padding: 2px 5px !important; line-height: 1.15 !important; }
 
-  /* Summary table compact */
-  .sum-wrap { padding: 0 3px; }
-  .sum-label { font-size: 7px !important; padding: 1px 5px !important; }
-  .sum-table { font-size: 6px !important; width: 100% !important; }
+  /* Summary table compact — 2-column side by side */
+  .sum-wrap { padding: 0 3px; columns: 2; column-gap: 8px; }
+  .sum-label { font-size: 7px !important; padding: 1px 5px !important; column-span: all; }
+  .sum-table { font-size: 6px !important; width: 100% !important; break-inside: avoid-column; }
   .sum-table th, .sum-table td { padding: 1px 2px !important; }
   .fq-extreme-tag { font-size: 5px !important; padding: 0 2px !important; }
+
+  /* PDF footer logo */
+  .pdf-footer-logo { text-align: center; margin-top: 4px; }
+  .pdf-footer-logo img { height: 28px; opacity: 0.7; }
 
   /* Flow Quality compact */
   .fq-body { padding: 2px 5px !important; }
@@ -647,7 +651,7 @@ body {
   </table>
 </div>
 
-<!-- PDF Signature (print only) -->
+<!-- PDF Signature + Footer (print only) -->
 <div id="pdfSignature" style="display:none">
   <div class="sig-row">
     <div class="sig-block">
@@ -663,6 +667,7 @@ body {
       <div class="sig-sub">簽名 / 日期</div>
     </div>
   </div>
+  <div class="pdf-footer-logo" id="pdfFooterLogo"></div>
 </div>
 
 <!-- Config -->
@@ -1570,6 +1575,13 @@ function updateResults() {
 function exportPDF() {
   document.getElementById('pdfBanner').style.display = 'block';
   document.getElementById('sumSection').style.display = '';
+  var logoEl = document.getElementById('pdfFooterLogo');
+  var srcImg = document.querySelector('.footer-wrap img');
+  if (srcImg && !logoEl.querySelector('img')) {
+    var img = document.createElement('img');
+    img.src = srcImg.src;
+    logoEl.appendChild(img);
+  }
   window.print();
   setTimeout(function() { document.getElementById('pdfBanner').style.display = 'none'; }, 2000);
 }
