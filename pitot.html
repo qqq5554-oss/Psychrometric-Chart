@@ -1233,7 +1233,7 @@ function buildCircSVG() {
   var vw = Math.min(window.innerWidth - 28, 500);
   var RADIUS = Math.min(155, Math.floor((vw - 80) / 2));
   var PAD = 50;
-  var SW = RADIUS*2+PAD*2+60, SH = RADIUS*2+PAD*2+16;
+  var SW = RADIUS*2+PAD*2+60, SH = RADIUS*2+PAD*2+36;
   var cx = SW/2, cy = PAD+RADIUS;
   var fracs = circFracs(D);
   var nPts = fracs.length;
@@ -1251,6 +1251,18 @@ function buildCircSVG() {
   for (var i=0;i<axLbl.length;i++) {
     s += '<text x="'+axLbl[i].x+'" y="'+axLbl[i].y+'" text-anchor="'+axLbl[i].a+'" font-size="11" fill="#9a7a7a" font-weight="bold" font-family="sans-serif">'+axLbl[i].t+'</text>';
   }
+
+  // Distance tick marks on axes
+  for (var i = 0; i < fracs.length; i++) {
+    var dist = Math.round(fracs[i]*D);
+    var hpx = cx + (fracs[i] - 0.5) * 2 * RADIUS;
+    s += '<line x1="'+hpx+'" y1="'+(cy+RADIUS+2)+'" x2="'+hpx+'" y2="'+(cy+RADIUS+7)+'" stroke="#8C1515" stroke-width="1"/>';
+    s += '<text x="'+hpx+'" y="'+(cy+RADIUS+16)+'" text-anchor="middle" font-size="8" fill="#9a7a7a" font-family="sans-serif">'+dist+'</text>';
+    var vpy = cy + (fracs[i] - 0.5) * 2 * RADIUS;
+    s += '<line x1="'+(cx-RADIUS-7)+'" y1="'+vpy+'" x2="'+(cx-RADIUS-2)+'" y2="'+vpy+'" stroke="#8C1515" stroke-width="1"/>';
+    s += '<text x="'+(cx-RADIUS-10)+'" y="'+(vpy+3)+'" text-anchor="end" font-size="8" fill="#9a7a7a" font-family="sans-serif">'+dist+'</text>';
+  }
+  s += '<text x="'+cx+'" y="'+(cy+RADIUS+26)+'" text-anchor="middle" font-size="8" fill="#9a7a7a" font-family="sans-serif">距左壁 (mm)</text>';
 
   for (var i = 0; i < pts.length; i++) {
     var p = pts[i];
@@ -1617,17 +1629,20 @@ function heatCircSVG(filled, vmin, vmax, GRID, vw, BAR_W, BAR_GAP, ul) {
   var cS = drawD/GRID;
 
   var s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+SW+'" height="'+SH+'" viewBox="0 0 '+SW+' '+SH+'">';
+  s += '<defs><clipPath id="circClip"><circle cx="'+cx+'" cy="'+cy+'" r="'+RADIUS+'"/></clipPath></defs>';
   s += '<rect width="'+SW+'" height="'+SH+'" fill="#fdf8f8"/>';
+  s += '<g clip-path="url(#circClip)">';
   for (var r = 0; r < GRID; r++) {
     for (var c = 0; c < GRID; c++) {
       var xmm = D*(c+0.5)/GRID, ymm = D*(r+0.5)/GRID;
       var dx = xmm-R, dy = ymm-R;
-      if (dx*dx+dy*dy > R*R) continue;
+      if (dx*dx+dy*dy > R*R*1.1) continue;
       var v = idwInterp(xmm, ymm);
       var t = (v-vmin)/(vmax-vmin);
       s += '<rect x="'+(ML+c*cS)+'" y="'+(MT+r*cS)+'" width="'+(cS+1)+'" height="'+(cS+1)+'" fill="'+velColor(t)+'"/>';
     }
   }
+  s += '</g>';
   s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+RADIUS+'" fill="none" stroke="#8C1515" stroke-width="2"/>';
   s += '<line x1="'+(cx-RADIUS)+'" y1="'+cy+'" x2="'+(cx+RADIUS)+'" y2="'+cy+'" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>';
   s += '<line x1="'+cx+'" y1="'+(cy-RADIUS)+'" x2="'+cx+'" y2="'+(cy+RADIUS)+'" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>';
