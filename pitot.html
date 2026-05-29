@@ -447,6 +447,55 @@ body {
 .sb-clr { background: #fff3f0; color: #e8521a; border: 2px solid #fdddd8; }
 .sb-can { background: #fdf8f8; color: #9a7a7a; border: 2px solid #e8cccc; }
 
+/* Numpad — mobile only */
+.big-display { display: none; }
+.numpad { display: none; }
+@media (max-width: 600px) {
+  .big-input { display: none !important; }
+  .big-display {
+    display: block;
+    width: 100%;
+    background: #fdf8f8;
+    border: 2.5px solid #e8cccc;
+    border-radius: 14px;
+    padding: 14px 74px 14px 20px;
+    font-size: 36px;
+    font-weight: 700;
+    color: #1a0a0a;
+    text-align: right;
+    font-family: inherit;
+    min-height: 28px;
+    user-select: none;
+  }
+  .big-display.active { border-color: #8C1515; background: #fff; }
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .np {
+    padding: 12px 0;
+    border-radius: 10px;
+    border: none;
+    font-size: 20px;
+    font-weight: 700;
+    font-family: inherit;
+    background: #fdf8f8;
+    color: #333;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .np:active { background: #f0e0e0; }
+  .np-fn { color: #8C1515; background: #fff3f0; }
+  .np-del { grid-column: 1; }
+  .np-clr { background: #fff3f0; color: #e8521a; }
+  .np-ok { background: #8C1515; color: #fff; }
+  .np-ok:active { background: #6B0F0F; }
+  .np-act { font-size: 15px; }
+  #sheetBtns { display: none !important; }
+}
+
 /* ── Print ── */
 @media print {
   @page { size: A4; margin: 5mm 6mm 4mm 6mm; }
@@ -890,9 +939,27 @@ body {
     <label class="sheet-lbl">輸入風速</label>
     <div class="inp-row">
       <input class="big-input" id="bigInput" type="number" inputmode="decimal" min="0" max="9999" step="0.01" placeholder="0.00">
+      <div class="big-display" id="bigDisplay">0.00</div>
       <span class="inp-unit" id="bigUnit">m/s</span>
     </div>
-    <div class="sheet-btns">
+    <div class="numpad" id="numpad">
+      <button class="np" onclick="npKey('1')">1</button>
+      <button class="np" onclick="npKey('2')">2</button>
+      <button class="np" onclick="npKey('3')">3</button>
+      <button class="np" onclick="npKey('4')">4</button>
+      <button class="np" onclick="npKey('5')">5</button>
+      <button class="np" onclick="npKey('6')">6</button>
+      <button class="np" onclick="npKey('7')">7</button>
+      <button class="np" onclick="npKey('8')">8</button>
+      <button class="np" onclick="npKey('9')">9</button>
+      <button class="np np-fn" onclick="npKey('±')">±</button>
+      <button class="np" onclick="npKey('0')">0</button>
+      <button class="np np-fn" onclick="npKey('.')">.</button>
+      <button class="np np-fn np-del" onclick="npKey('⌫')">⌫</button>
+      <button class="np np-act np-clr" onclick="clearPt()">清除</button>
+      <button class="np np-act np-ok" onclick="savePt()">確認</button>
+    </div>
+    <div class="sheet-btns" id="sheetBtns">
       <button class="sb-clr" onclick="clearPt()">🗑 清除</button>
       <button class="sb-can" onclick="closeSheet()">取消</button>
       <button class="sb-ok" onclick="savePt()">✓ 確認</button>
@@ -1300,6 +1367,25 @@ function buildCircSVG() {
 }
 
 // ── Bottom sheet ───────────────────────────────────────────────
+var npBuf = '';
+var isMobile = window.innerWidth <= 600;
+
+function npKey(k) {
+  if (k === '⌫') {
+    npBuf = npBuf.slice(0, -1);
+  } else if (k === '±') {
+    if (npBuf.charAt(0) === '-') npBuf = npBuf.slice(1);
+    else if (npBuf.length > 0) npBuf = '-' + npBuf;
+    else npBuf = '-';
+  } else if (k === '.') {
+    if (npBuf.indexOf('.') < 0) npBuf += '.';
+  } else {
+    if (npBuf.length < 8) npBuf += k;
+  }
+  document.getElementById('bigDisplay').textContent = npBuf || '0.00';
+  document.getElementById('bigInput').value = npBuf;
+}
+
 function openSheet(pid) {
   var p = null;
   for (var i = 0; i < pts.length; i++) if (pts[i].id===pid) { p=pts[i]; break; }
@@ -1308,12 +1394,18 @@ function openSheet(pid) {
   document.getElementById('sheetTitle').textContent = '點 ' + p.id + ' — ' + p.label;
   document.getElementById('sheetDesc').textContent  = p.desc;
   document.getElementById('bigUnit').textContent    = getUL();
-  document.getElementById('bigInput').value         = p.val !== null ? p.val : '';
-  document.getElementById('overlay').className      = 'overlay show';
-  setTimeout(function() { document.getElementById('bigInput').focus(); }, 260);
+  var valStr = p.val !== null ? String(p.val) : '';
+  document.getElementById('bigInput').value = valStr;
+  npBuf = valStr;
+  document.getElementById('bigDisplay').textContent = valStr || '0.00';
+  document.getElementById('bigDisplay').className = 'big-display active';
+  document.getElementById('overlay').className = 'overlay show';
+  if (!isMobile) setTimeout(function() { document.getElementById('bigInput').focus(); }, 260);
 }
 function closeSheet() {
   document.getElementById('overlay').className = 'overlay';
+  document.getElementById('bigDisplay').className = 'big-display';
+  npBuf = '';
   activePtId = -1;
 }
 function savePt() {
@@ -1322,18 +1414,12 @@ function savePt() {
     if (pts[i].id === activePtId) { pts[i].val = isNaN(v) ? null : v; break; }
   }
   closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
-  setTimeout(function() {
-    document.getElementById('diagSection').scrollIntoView({ behavior: 'instant', block: 'start' });
-  }, 80);
 }
 function clearPt() {
   for (var i = 0; i < pts.length; i++) {
     if (pts[i].id === activePtId) { pts[i].val = null; break; }
   }
   closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
-  setTimeout(function() {
-    document.getElementById('diagSection').scrollIntoView({ behavior: 'instant', block: 'start' });
-  }, 80);
 }
 document.getElementById('overlay').onclick = function(e) {
   if (e.target === this) closeSheet();
