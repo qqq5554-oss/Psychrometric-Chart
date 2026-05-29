@@ -1308,17 +1308,21 @@ function closeSheet() {
   activePtId = -1;
 }
 function savePt() {
+  var scrollY = window.scrollY;
   var v = parseFloat(document.getElementById('bigInput').value);
   for (var i = 0; i < pts.length; i++) {
     if (pts[i].id === activePtId) { pts[i].val = isNaN(v) ? null : v; break; }
   }
   closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
+  setTimeout(function() { window.scrollTo(0, scrollY); }, 50);
 }
 function clearPt() {
+  var scrollY = window.scrollY;
   for (var i = 0; i < pts.length; i++) {
     if (pts[i].id === activePtId) { pts[i].val = null; break; }
   }
   closeSheet(); drawSVG(); updateResults(); updateHeatmap(); updateFlowQuality();
+  setTimeout(function() { window.scrollTo(0, scrollY); }, 50);
 }
 document.getElementById('overlay').onclick = function(e) {
   if (e.target === this) closeSheet();
