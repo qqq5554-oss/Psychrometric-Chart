@@ -451,7 +451,7 @@ body {
 @media print {
   @page { size: A4; margin: 6mm 7mm 5mm 7mm; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { background: #fff; font-size: 8px; display: grid !important; grid-template-columns: 55fr 45fr; gap: 3px 5px; align-items: start; }
+  body { background: #fff; font-size: 8px; display: grid !important; grid-template-columns: 1fr 1fr; gap: 3px 5px; align-items: start; }
   .tool-nav, .topbar, #cfgSection, #progSection, .action-row, .tap-hint, .overlay, .spacer, .footer-wrap { display: none !important; }
 
   /* Banner full width */
@@ -474,11 +474,14 @@ body {
   .section { margin: 0; border-radius: 3px; border: 1px solid #ccc; box-shadow: none; }
   .sec-head { font-size: 9px !important; padding: 3px 8px !important; }
 
-  /* Diagram compact */
+  /* Diagram + Heatmap same size */
+  #diagSection, #heatSection { min-height: 0; }
   #diagSection .pills { font-size: 7px; gap: 2px; padding: 1px 6px; }
   #diagSection .pill { padding: 1px 4px; font-size: 6.5px; }
   .svg-scroll { overflow: hidden; padding: 1px; max-width: 100%; }
   .svg-scroll svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+  #diagSection .svg-scroll, #heatSection .svg-scroll { height: 210px; display: flex; align-items: center; justify-content: center; }
+  #diagSection .svg-scroll svg, #heatSection .svg-scroll svg { max-height: 200px !important; width: auto !important; }
   .tap-hint { display: none !important; }
 
   /* Heatmap compact */
