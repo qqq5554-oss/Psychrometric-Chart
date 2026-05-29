@@ -456,6 +456,10 @@ body {
 
   /* Banner full width */
   #pdfBanner { display: block !important; grid-column: 1 / -1; padding: 6px 10px !important; }
+  #pb_projRow { display: flex !important; }
+
+  /* Signature at bottom */
+  #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 4; margin-top: 2px; }
   #pdfBanner h2 { font-size: 12px !important; margin-bottom: 0 !important; }
   #pdfBanner p { font-size: 8px !important; margin-bottom: 2px !important; }
   #pdfBanner .btag { font-size: 7px !important; padding: 1px 5px !important; }
@@ -529,6 +533,13 @@ body {
 #pdfBanner p  { font-size: 11px; opacity: .8; margin-bottom: 10px; }
 #pdfBanner .brow { display: flex; gap: 8px; flex-wrap: wrap; }
 #pdfBanner .btag { font-size: 11px; background: rgba(255,255,255,.2); padding: 3px 10px; border-radius: 4px; }
+#pdfSignature { display: none; }
+.sig-row { display: flex; gap: 40px; justify-content: center; padding: 6px 20px; }
+.sig-block { flex: 1; max-width: 200px; text-align: center; }
+.sig-label { font-size: 9px; color: #666; font-weight: 600; margin-bottom: 2px; }
+.sig-name { font-size: 10px; font-weight: 700; color: #333; min-height: 14px; }
+.sig-line { border-bottom: 1px solid #999; margin: 12px 0 2px; }
+.sig-sub { font-size: 7px; color: #999; }
 </style>
 </head>
 <body>
@@ -560,6 +571,29 @@ body {
     <span class="btag" id="pb_area"></span>
     <span class="btag" id="pb_pts"></span>
     <span class="btag" id="pb_date"></span>
+  </div>
+  <div class="brow" id="pb_projRow" style="margin-top:4px;display:none">
+    <span class="btag" id="pb_proj"></span>
+    <span class="btag" id="pb_duct"></span>
+    <span class="btag" id="pb_equip"></span>
+    <span class="btag" id="pb_freq"></span>
+  </div>
+</div>
+
+<!-- PDF Signature (print only) -->
+<div id="pdfSignature" style="display:none">
+  <div class="sig-row">
+    <div class="sig-block">
+      <div class="sig-label">測試人員</div>
+      <div class="sig-name" id="sig_tester"></div>
+      <div class="sig-line"></div>
+      <div class="sig-sub">簽名 / 日期</div>
+    </div>
+    <div class="sig-block">
+      <div class="sig-label">審核人員</div>
+      <div class="sig-line"></div>
+      <div class="sig-sub">簽名 / 日期</div>
+    </div>
   </div>
 </div>
 
@@ -615,6 +649,30 @@ body {
           <input type="text" id="noteRect" placeholder="位置 / 日期…">
         </div>
       </div>
+      <div class="row2">
+        <div class="fg">
+          <label>專案名稱</label>
+          <input type="text" id="projRect" placeholder="例：台北 101 空調系統">
+        </div>
+        <div class="fg">
+          <label>風管編號</label>
+          <input type="text" id="ductRect" placeholder="例：AHU-1-SA-01">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="fg">
+          <label>測試設備編號</label>
+          <input type="text" id="equipRect" placeholder="例：PT-2024-001">
+        </div>
+        <div class="fg">
+          <label>設備運轉頻率</label>
+          <input type="text" id="freqRect" placeholder="例：50 Hz / 45 Hz">
+        </div>
+      </div>
+      <div class="fg">
+        <label>測試人員</label>
+        <input type="text" id="testerRect" placeholder="姓名">
+      </div>
     </div>
 
     <!-- Circular config -->
@@ -637,6 +695,30 @@ body {
       <div class="fg">
         <label>案件說明</label>
         <input type="text" id="noteCirc" placeholder="位置 / 日期…">
+      </div>
+      <div class="row2">
+        <div class="fg">
+          <label>專案名稱</label>
+          <input type="text" id="projCirc" placeholder="例：台北 101 空調系統">
+        </div>
+        <div class="fg">
+          <label>風管編號</label>
+          <input type="text" id="ductCirc" placeholder="例：AHU-1-SA-01">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="fg">
+          <label>測試設備編號</label>
+          <input type="text" id="equipCirc" placeholder="例：PT-2024-001">
+        </div>
+        <div class="fg">
+          <label>設備運轉頻率</label>
+          <input type="text" id="freqCirc" placeholder="例：50 Hz / 45 Hz">
+        </div>
+      </div>
+      <div class="fg">
+        <label>測試人員</label>
+        <input type="text" id="testerCirc" placeholder="姓名">
       </div>
     </div>
 
@@ -805,7 +887,7 @@ var method = 'lt';
 var pts = [];
 var activePtId = -1;
 var dW = 900, dH = 500, dD = 600;
-var curNote = '';
+var curNote = '', curProj = '', curDuct = '', curEquip = '', curFreq = '', curTester = '';
 
 // ── ASHRAE 111-2024 · Equal Area lookup ────────────────────────
 var EA_TABLE = [
@@ -974,12 +1056,22 @@ function generate() {
     if (dD < 50) { alert('請輸入有效直徑（≥50mm）'); return; }
     pts = mkCircPts(dD);
     curNote = document.getElementById('noteCirc').value;
+    curProj = document.getElementById('projCirc').value;
+    curDuct = document.getElementById('ductCirc').value;
+    curEquip = document.getElementById('equipCirc').value;
+    curFreq = document.getElementById('freqCirc').value;
+    curTester = document.getElementById('testerCirc').value;
   } else {
     dW = parseInt(document.getElementById('dW').value) || 0;
     dH = parseInt(document.getElementById('dH').value) || 0;
     if (dW < 100 || dH < 100) { alert('請輸入有效尺寸（≥100mm）'); return; }
     pts = method === 'ea' ? mkEAPts(dW, dH) : mkLTPts(dW, dH);
     curNote = document.getElementById('noteRect').value;
+    curProj = document.getElementById('projRect').value;
+    curDuct = document.getElementById('ductRect').value;
+    curEquip = document.getElementById('equipRect').value;
+    curFreq = document.getElementById('freqRect').value;
+    curTester = document.getElementById('testerRect').value;
   }
   drawSVG();
   updateResults();
@@ -1340,6 +1432,18 @@ function updateResults() {
   document.getElementById('pb_pts').textContent       = '量測 '+n+'/'+pts.length+'點';
   document.getElementById('pb_date').textContent      = ds;
   document.getElementById('pb_methodline').textContent = 'PITOT TUBE TRAVERSE · ' + mNames[method].toUpperCase() + ' · ASHRAE 111-2024';
+
+  var projRow = document.getElementById('pb_projRow');
+  if (curProj || curDuct || curEquip || curFreq) {
+    document.getElementById('pb_proj').textContent = curProj ? '專案：' + curProj : '';
+    document.getElementById('pb_duct').textContent = curDuct ? '風管：' + curDuct : '';
+    document.getElementById('pb_equip').textContent = curEquip ? '設備：' + curEquip : '';
+    document.getElementById('pb_freq').textContent = curFreq ? '頻率：' + curFreq : '';
+    projRow.style.display = '';
+  } else {
+    projRow.style.display = 'none';
+  }
+  document.getElementById('sig_tester').textContent = curTester || '';
 }
 
 // ── Export PDF ─────────────────────────────────────────────────
