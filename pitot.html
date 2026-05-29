@@ -455,14 +455,15 @@ body {
   .tool-nav, .topbar, #cfgSection, #progSection, .action-row, .tap-hint, .overlay, .spacer, .footer-wrap { display: none !important; }
 
   /* Banner full width */
-  #pdfBanner { display: block !important; grid-column: 1 / -1; padding: 6px 10px !important; }
-  #pb_projRow { display: flex !important; }
+  #pdfBanner { display: block !important; grid-column: 1 / -1; }
+  .pb-header { padding: 5px 10px !important; }
+  .pb-header h2 { font-size: 12px !important; }
+  .pb-header p { font-size: 8px !important; }
+  .pb-info { font-size: 8px !important; }
+  .pb-info td { padding: 2px 5px !important; }
 
   /* Signature at bottom */
   #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 5; margin-top: 2px; }
-  #pdfBanner h2 { font-size: 12px !important; margin-bottom: 0 !important; }
-  #pdfBanner p { font-size: 8px !important; margin-bottom: 2px !important; }
-  #pdfBanner .btag { font-size: 7px !important; padding: 1px 5px !important; }
 
   /* Grid placement — row 2: diagrams, row 3: results+FQ (equal height), row 4: summary full width */
   #diagSection  { grid-column: 1; grid-row: 2; }
@@ -525,17 +526,14 @@ body {
   .fq-check { padding: 1px 4px !important; margin-bottom: 1px !important; font-size: 7px !important; gap: 3px !important; }
   .fq-check-icon { font-size: 8px !important; min-width: 12px !important; }
 }
-#pdfBanner {
-  display: none;
-  background: #8C1515;
-  color: #fff;
-  padding: 18px 20px;
-  -webkit-print-color-adjust: exact;
-}
-#pdfBanner h2 { font-size: 17px; font-weight: 700; margin-bottom: 3px; }
-#pdfBanner p  { font-size: 11px; opacity: .8; margin-bottom: 10px; }
-#pdfBanner .brow { display: flex; gap: 8px; flex-wrap: wrap; }
-#pdfBanner .btag { font-size: 11px; background: rgba(255,255,255,.2); padding: 3px 10px; border-radius: 4px; }
+#pdfBanner { display: none; -webkit-print-color-adjust: exact; }
+.pb-header { background: #8C1515; color: #fff; padding: 8px 14px; }
+.pb-header h2 { font-size: 16px; font-weight: 700; margin: 0 0 1px; }
+.pb-header p { font-size: 10px; opacity: .8; margin: 0; }
+.pb-info { width: 100%; border-collapse: collapse; font-size: 11px; }
+.pb-info td { padding: 3px 8px; border: 1px solid #e0d0d0; }
+.pb-lbl { background: #fdf0f0; color: #8C1515; font-weight: 600; width: 12%; white-space: nowrap; }
+.pb-val { color: #333; width: 38%; }
 #pdfSignature { display: none; }
 .sig-row { display: flex; gap: 40px; justify-content: center; padding: 6px 20px; }
 .sig-block { flex: 1; max-width: 200px; text-align: center; }
@@ -564,23 +562,35 @@ body {
 
 <!-- PDF Banner -->
 <div id="pdfBanner" style="display: none;">
-  <h2>皮托管風速量測報告</h2>
-  <p id="pb_methodline">PITOT TUBE TRAVERSE · EQUAL AREA METHOD · ASHRAE 111-2024</p>
-  <div class="brow">
-    <span class="btag" id="pb_note"></span>
-    <span class="btag" id="pb_method"></span>
-    <span class="btag" id="pb_shape"></span>
-    <span class="btag" id="pb_dim"></span>
-    <span class="btag" id="pb_area"></span>
-    <span class="btag" id="pb_pts"></span>
-    <span class="btag" id="pb_date"></span>
+  <div class="pb-header">
+    <h2>皮托管風速量測報告</h2>
+    <p id="pb_methodline">PITOT TUBE TRAVERSE · EQUAL AREA METHOD · ASHRAE 111-2024</p>
   </div>
-  <div class="brow" id="pb_projRow" style="margin-top:4px;display:none">
-    <span class="btag" id="pb_proj"></span>
-    <span class="btag" id="pb_duct"></span>
-    <span class="btag" id="pb_equip"></span>
-    <span class="btag" id="pb_freq"></span>
-  </div>
+  <table class="pb-info">
+    <tr>
+      <td class="pb-lbl">專案名稱</td><td class="pb-val" id="pb_proj">—</td>
+      <td class="pb-lbl">測試日期</td><td class="pb-val" id="pb_date">—</td>
+    </tr>
+    <tr>
+      <td class="pb-lbl">風管編號</td><td class="pb-val" id="pb_duct">—</td>
+      <td class="pb-lbl">風管型式</td><td class="pb-val" id="pb_shape">—</td>
+    </tr>
+    <tr>
+      <td class="pb-lbl">風管尺寸</td><td class="pb-val" id="pb_dim">—</td>
+      <td class="pb-lbl">斷面積</td><td class="pb-val" id="pb_area">—</td>
+    </tr>
+    <tr>
+      <td class="pb-lbl">量測方法</td><td class="pb-val" id="pb_method">—</td>
+      <td class="pb-lbl">量測點數</td><td class="pb-val" id="pb_pts">—</td>
+    </tr>
+    <tr>
+      <td class="pb-lbl">測試設備</td><td class="pb-val" id="pb_equip">—</td>
+      <td class="pb-lbl">運轉頻率</td><td class="pb-val" id="pb_freq">—</td>
+    </tr>
+    <tr>
+      <td class="pb-lbl">案件說明</td><td class="pb-val" id="pb_note" colspan="3">—</td>
+    </tr>
+  </table>
 </div>
 
 <!-- PDF Signature (print only) -->
@@ -1427,25 +1437,18 @@ function updateResults() {
   var now = new Date();
   var ds = now.getFullYear()+'-'+(now.getMonth()+1+'').padStart(2,'0')+'-'+(now.getDate()+'').padStart(2,'0');
   var mNames = { ea: '等面積法', lt: 'Log-Tchebycheff', circ: '圓形 Log-Linear' };
-  document.getElementById('pb_note').textContent      = curNote || '皮托管量測報告';
-  document.getElementById('pb_method').textContent    = mNames[method];
-  document.getElementById('pb_shape').textContent     = method==='circ' ? '圓形風管' : '矩形風管';
-  document.getElementById('pb_dim').textContent       = method==='circ' ? 'Ø'+dD+'mm' : dW+'×'+dH+'mm';
-  document.getElementById('pb_area').textContent      = '斷面積 '+area.toFixed(4)+'m²';
-  document.getElementById('pb_pts').textContent       = '量測 '+n+'/'+pts.length+'點';
-  document.getElementById('pb_date').textContent      = ds;
   document.getElementById('pb_methodline').textContent = 'PITOT TUBE TRAVERSE · ' + mNames[method].toUpperCase() + ' · ASHRAE 111-2024';
-
-  var projRow = document.getElementById('pb_projRow');
-  if (curProj || curDuct || curEquip || curFreq) {
-    document.getElementById('pb_proj').textContent = curProj ? '專案：' + curProj : '';
-    document.getElementById('pb_duct').textContent = curDuct ? '風管：' + curDuct : '';
-    document.getElementById('pb_equip').textContent = curEquip ? '設備：' + curEquip : '';
-    document.getElementById('pb_freq').textContent = curFreq ? '頻率：' + curFreq : '';
-    projRow.style.display = '';
-  } else {
-    projRow.style.display = 'none';
-  }
+  document.getElementById('pb_proj').textContent   = curProj || '—';
+  document.getElementById('pb_date').textContent   = ds;
+  document.getElementById('pb_duct').textContent   = curDuct || '—';
+  document.getElementById('pb_shape').textContent  = method==='circ' ? '圓形風管' : '矩形風管';
+  document.getElementById('pb_dim').textContent    = method==='circ' ? 'Ø'+dD+'mm' : dW+'×'+dH+'mm';
+  document.getElementById('pb_area').textContent   = area.toFixed(4)+' m²';
+  document.getElementById('pb_method').textContent = mNames[method];
+  document.getElementById('pb_pts').textContent    = n+' / '+pts.length+' 點';
+  document.getElementById('pb_equip').textContent  = curEquip || '—';
+  document.getElementById('pb_freq').textContent   = curFreq || '—';
+  document.getElementById('pb_note').textContent   = curNote || '—';
   document.getElementById('sig_tester').textContent = curTester || '';
 }
 
