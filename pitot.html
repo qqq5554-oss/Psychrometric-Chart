@@ -459,16 +459,17 @@ body {
   #pb_projRow { display: flex !important; }
 
   /* Signature at bottom */
-  #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 4; margin-top: 2px; }
+  #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 5; margin-top: 2px; }
   #pdfBanner h2 { font-size: 12px !important; margin-bottom: 0 !important; }
   #pdfBanner p { font-size: 8px !important; margin-bottom: 2px !important; }
   #pdfBanner .btag { font-size: 7px !important; padding: 1px 5px !important; }
 
-  /* Grid placement */
+  /* Grid placement — row 2: diagrams, row 3: results+FQ (equal height), row 4: summary full width */
   #diagSection  { grid-column: 1; grid-row: 2; }
   #heatSection  { grid-column: 2; grid-row: 2; display: block !important; }
-  #resSection   { grid-column: 1; grid-row: 3; }
-  #fqSection    { grid-column: 2; grid-row: 3; display: block !important; }
+  #resSection   { grid-column: 1; grid-row: 3; align-self: stretch; }
+  #fqSection    { grid-column: 2; grid-row: 3; display: block !important; align-self: stretch; }
+  #sumSection   { grid-column: 1 / -1; grid-row: 4; display: block !important; border: 1px solid #ccc; border-radius: 3px; }
 
   /* Sections base */
   .section { margin: 0; border-radius: 3px; border: 1px solid #ccc; box-shadow: none; }
@@ -499,11 +500,10 @@ body {
   #noteDisp { padding: 2px 8px 0 !important; font-size: 7px !important; }
   .validation-row { font-size: 7px !important; padding: 2px 6px !important; line-height: 1.2 !important; }
 
-  /* Summary table compact */
-  #sumSection { display: block !important; }
+  /* Summary table compact — full width, two-column table */
   .sum-wrap { padding: 0 4px; }
   .sum-label { font-size: 8px !important; padding: 2px 6px !important; }
-  .sum-table { font-size: 6.5px !important; }
+  .sum-table { font-size: 6.5px !important; width: 100% !important; }
   .sum-table th, .sum-table td { padding: 1px 3px !important; }
   .fq-extreme-tag { font-size: 6px !important; padding: 0 3px !important; }
 
@@ -815,24 +815,24 @@ body {
   <!-- ASHRAE 111 Validation -->
   <div class="validation-row" id="validRow" style="display:none"></div>
 
-  <!-- Detail table -->
-  <div id="sumSection" style="display: none;">
-    <div class="sum-wrap">
-      <div class="sum-label">各點量測明細</div>
-      <div style="overflow-x:auto">
-        <table class="sum-table">
-          <thead>
-            <tr><th>#</th><th>標識</th><th>位置</th><th>風速</th><th>偏差</th><th>備註</th></tr>
-          </thead>
-          <tbody id="sumBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
   <div class="action-row">
     <button class="btn btn-primary" onclick="exportPDF()">📄 匯出 PDF</button>
     <button class="btn btn-outline" onclick="clearAll()">↺ 重新量測</button>
+  </div>
+</div>
+
+<!-- Detail table (independent for print grid) -->
+<div id="sumSection" style="display: none;">
+  <div class="sum-wrap">
+    <div class="sum-label">各點量測明細</div>
+    <div style="overflow-x:auto">
+      <table class="sum-table">
+        <thead>
+          <tr><th>#</th><th>標識</th><th>位置</th><th>風速</th><th>偏差</th><th>備註</th></tr>
+        </thead>
+        <tbody id="sumBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
