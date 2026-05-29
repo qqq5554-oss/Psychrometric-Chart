@@ -449,81 +449,86 @@ body {
 
 /* ── Print ── */
 @media print {
-  @page { size: A4; margin: 6mm 7mm 5mm 7mm; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { background: #fff; font-size: 8px; display: grid !important; grid-template-columns: 1fr 1fr; gap: 3px 5px; align-items: start; }
+  @page { size: A4; margin: 5mm 6mm 4mm 6mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; page-break-inside: avoid; }
+  body { background: #fff; font-size: 8px; display: grid !important; grid-template-columns: 1fr 1fr; gap: 2px 4px; align-items: start; }
   .tool-nav, .topbar, #cfgSection, #progSection, .action-row, .tap-hint, .overlay, .spacer, .footer-wrap { display: none !important; }
 
   /* Banner full width */
   #pdfBanner { display: block !important; grid-column: 1 / -1; }
-  .pb-header { padding: 5px 10px !important; }
-  .pb-header h2 { font-size: 12px !important; }
-  .pb-header p { font-size: 8px !important; }
-  .pb-info { font-size: 8px !important; }
-  .pb-info td { padding: 2px 5px !important; }
+  .pb-header { padding: 4px 10px !important; }
+  .pb-header h2 { font-size: 11px !important; }
+  .pb-header p { font-size: 7px !important; }
+  .pb-info { font-size: 7.5px !important; }
+  .pb-info td { padding: 1px 4px !important; }
 
-  /* Signature at bottom */
-  #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 5; margin-top: 2px; }
+  /* Signature — tight, no page break */
+  #pdfSignature { display: block !important; grid-column: 1 / -1; grid-row: 5; margin: 0; padding: 2px 0; page-break-before: avoid; }
+  .sig-row { padding: 2px 40px !important; gap: 60px !important; }
+  .sig-label { font-size: 8px !important; }
+  .sig-name { font-size: 9px !important; min-height: 10px !important; }
+  .sig-line { margin: 8px 0 1px !important; }
+  .sig-sub { font-size: 6px !important; }
 
-  /* Grid placement — row 2: diagrams, row 3: results+FQ (equal height), row 4: summary full width */
+  /* Grid placement */
   #diagSection  { grid-column: 1; grid-row: 2; }
   #heatSection  { grid-column: 2; grid-row: 2; display: block !important; }
   #resSection   { grid-column: 1; grid-row: 3; align-self: stretch; }
   #fqSection    { grid-column: 2; grid-row: 3; display: block !important; align-self: stretch; }
-  #sumSection   { grid-column: 1 / -1; grid-row: 4; display: block !important; border: 1px solid #ccc; border-radius: 3px; }
+  #sumSection   { grid-column: 1 / -1; grid-row: 4; display: block !important; border: 1px solid #ccc; border-radius: 3px; page-break-before: avoid; }
 
   /* Sections base */
   .section { margin: 0; border-radius: 3px; border: 1px solid #ccc; box-shadow: none; }
-  .sec-head { font-size: 9px !important; padding: 3px 8px !important; }
+  .sec-head { font-size: 8px !important; padding: 2px 8px !important; }
 
   /* Diagram + Heatmap same size */
   #diagSection, #heatSection { min-height: 0; }
-  #diagSection .pills { font-size: 7px; gap: 2px; padding: 1px 6px; }
-  #diagSection .pill { padding: 1px 4px; font-size: 6.5px; }
+  #diagSection .pills { font-size: 6px; gap: 2px; padding: 1px 4px; }
+  #diagSection .pill { padding: 1px 3px; font-size: 5.5px; }
   .svg-scroll { overflow: hidden; padding: 1px; max-width: 100%; }
   .svg-scroll svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
-  #diagSection .svg-scroll, #heatSection .svg-scroll { height: 210px; display: flex; align-items: center; justify-content: center; }
-  #diagSection .svg-scroll svg, #heatSection .svg-scroll svg { max-height: 200px !important; width: auto !important; }
+  #diagSection .svg-scroll, #heatSection .svg-scroll { height: 190px; display: flex; align-items: center; justify-content: center; }
+  #diagSection .svg-scroll svg, #heatSection .svg-scroll svg { max-height: 185px !important; width: auto !important; }
   .tap-hint { display: none !important; }
 
   /* Heatmap compact */
-  #heatSection .heat-note { font-size: 7px; padding: 1px 6px; }
-  .heat-legend { font-size: 7px; padding: 2px 6px; gap: 3px; }
+  #heatSection .heat-note { font-size: 6px; padding: 1px 4px; }
+  .heat-legend { font-size: 6px; padding: 1px 4px; gap: 2px; }
 
   /* Results compact */
-  .res-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 1px !important; padding: 2px 4px !important; }
-  .rb { padding: 2px 3px !important; }
+  .res-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 1px !important; padding: 2px 3px !important; }
+  .rb { padding: 1px 2px !important; }
   .rb.span2 { grid-column: span 2 !important; }
-  .rb.span2 .rv { font-size: 14px !important; }
-  .rl { font-size: 6.5px !important; }
-  .rv { font-size: 11px !important; }
-  .ru { font-size: 6.5px !important; }
-  #noteDisp { padding: 2px 8px 0 !important; font-size: 7px !important; }
-  .validation-row { font-size: 7px !important; padding: 2px 6px !important; line-height: 1.2 !important; }
+  .rb.span2 .rv { font-size: 13px !important; }
+  .rl { font-size: 6px !important; }
+  .rv { font-size: 10px !important; }
+  .ru { font-size: 6px !important; }
+  #noteDisp { padding: 1px 6px 0 !important; font-size: 6px !important; }
+  .validation-row { font-size: 6.5px !important; padding: 2px 5px !important; line-height: 1.15 !important; }
 
-  /* Summary table compact — full width, two-column table */
-  .sum-wrap { padding: 0 4px; }
-  .sum-label { font-size: 8px !important; padding: 2px 6px !important; }
-  .sum-table { font-size: 6.5px !important; width: 100% !important; }
-  .sum-table th, .sum-table td { padding: 1px 3px !important; }
-  .fq-extreme-tag { font-size: 6px !important; padding: 0 3px !important; }
+  /* Summary table compact */
+  .sum-wrap { padding: 0 3px; }
+  .sum-label { font-size: 7px !important; padding: 1px 5px !important; }
+  .sum-table { font-size: 6px !important; width: 100% !important; }
+  .sum-table th, .sum-table td { padding: 1px 2px !important; }
+  .fq-extreme-tag { font-size: 5px !important; padding: 0 2px !important; }
 
   /* Flow Quality compact */
-  .fq-body { padding: 3px 6px !important; }
-  .fq-score-row { gap: 8px !important; margin-bottom: 2px !important; }
-  .fq-score { width: 36px !important; height: 36px !important; font-size: 14px !important; min-width: 36px !important; }
-  .fq-grade { font-size: 10px !important; }
-  .fq-verdict { font-size: 7px !important; }
-  .fq-meter-wrap { margin: 2px 0 !important; }
-  .fq-meter { height: 5px !important; }
-  .fq-meter-label, .fq-meter-val { font-size: 7px !important; }
-  .fq-stats { gap: 3px !important; margin: 2px 0 !important; }
-  .fq-stat { padding: 2px 4px !important; }
-  .fq-stat-label { font-size: 6.5px !important; }
-  .fq-stat-val { font-size: 10px !important; }
-  .fq-stat-unit { font-size: 6.5px !important; }
-  .fq-checks { margin-top: 2px !important; }
-  .fq-check { padding: 1px 4px !important; margin-bottom: 1px !important; font-size: 7px !important; gap: 3px !important; }
+  .fq-body { padding: 2px 5px !important; }
+  .fq-score-row { gap: 6px !important; margin-bottom: 1px !important; }
+  .fq-score { width: 32px !important; height: 32px !important; font-size: 13px !important; min-width: 32px !important; }
+  .fq-grade { font-size: 9px !important; }
+  .fq-verdict { font-size: 6.5px !important; }
+  .fq-meter-wrap { margin: 1px 0 !important; }
+  .fq-meter { height: 4px !important; }
+  .fq-meter-label, .fq-meter-val { font-size: 6px !important; }
+  .fq-stats { gap: 2px !important; margin: 1px 0 !important; }
+  .fq-stat { padding: 2px 3px !important; }
+  .fq-stat-label { font-size: 6px !important; }
+  .fq-stat-val { font-size: 9px !important; }
+  .fq-stat-unit { font-size: 6px !important; }
+  .fq-checks { margin-top: 1px !important; }
+  .fq-check { padding: 1px 3px !important; margin-bottom: 0 !important; font-size: 6.5px !important; gap: 2px !important; }
   .fq-check-icon { font-size: 8px !important; min-width: 12px !important; }
 }
 #pdfBanner { display: none; -webkit-print-color-adjust: exact; }
