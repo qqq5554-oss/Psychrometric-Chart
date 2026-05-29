@@ -863,7 +863,7 @@ function mkEAPts(W, H) {
       list.push({
         id: id++, label: 'R'+(yi+1)+'-C'+(xi+1),
         xmm: xF[xi]*W, ymm: yF[yi]*H,
-        desc: 'X='+Math.round(xF[xi]*W)+'mm　Y='+Math.round(yF[yi]*H)+'mm',
+        desc: '距左壁 '+Math.round(xF[xi]*W)+'mm　距頂壁 '+Math.round(yF[yi]*H)+'mm',
         val: null
       });
     }
@@ -879,7 +879,7 @@ function mkLTPts(W, H) {
       list.push({
         id: id++, label: 'R'+(yi+1)+'-C'+(xi+1),
         xmm: xF[xi]*W, ymm: yF[yi]*H,
-        desc: 'X='+Math.round(xF[xi]*W)+'mm　Y='+Math.round(yF[yi]*H)+'mm',
+        desc: '距左壁 '+Math.round(xF[xi]*W)+'mm　距頂壁 '+Math.round(yF[yi]*H)+'mm',
         val: null
       });
     }
@@ -1194,8 +1194,10 @@ function updateResults() {
   document.getElementById('rMinU').textContent = ul;
 
   var checks = [];
+  var hasNeg = msList.some(function(v){ return v < 0; });
   var hasZero = msList.some(function(v){ return v <= 0; });
-  if (hasZero) checks.push('<span class="v-warn">⚠ 有零或負值讀數 — 量測位置可能不適合</span>');
+  if (hasNeg) checks.push('<span class="v-warn">⚠ 有負值讀數（反向氣流）— 量測截面不適合，建議排除負值或更換位置</span>');
+  else if (hasZero) checks.push('<span class="v-warn">⚠ 有零值讀數 — 量測位置可能不適合</span>');
   else checks.push('<span class="v-ok">✓ 無負值讀數</span>');
   var threshold = mx * Math.sqrt(0.1);
   var aboveThreshold = msList.filter(function(v){ return v > threshold; }).length;
@@ -1205,8 +1207,45 @@ function updateResults() {
   if (n < pts.length) checks.push('<span style="color:#7a5a00">⚠ 尚有 '+(pts.length-n)+' 點未量測</span>');
   else checks.push('<span class="v-ok">✓ 所有量測點完成</span>');
 
+  // Symmetry check (ASHRAE 111 要求充分直管段，不對稱>10% 代表上游擾動)
+  if (method !== 'circ' && n >= 4) {
+    var leftMs = [], rightMs = [], topMs = [], bottomMs = [];
+    var midX = dW / 2, midY = dH / 2;
+    for (var i = 0; i < vals.length; i++) {
+      var xmm = vals[i].pt.xmm, ymm = vals[i].pt.ymm, v = vals[i].ms;
+      if (xmm < midX) leftMs.push(v); else rightMs.push(v);
+      if (ymm < midY) topMs.push(v); else bottomMs.push(v);
+    }
+    function halfAvg(a) { if(!a.length) return 0; var s=0; for(var i=0;i<a.length;i++) s+=a[i]; return s/a.length; }
+    if (leftMs.length && rightMs.length) {
+      var lrPct = Math.abs(halfAvg(leftMs)-halfAvg(rightMs))/avg*100;
+      if (lrPct > 10) checks.push('<span class="v-warn">⚠ 左右不對稱 '+lrPct.toFixed(1)+'% — 上游可能有彎頭或風門，ASHRAE 111 建議增加直管段</span>');
+    }
+    if (topMs.length && bottomMs.length) {
+      var tbPct = Math.abs(halfAvg(topMs)-halfAvg(bottomMs))/avg*100;
+      if (tbPct > 10) checks.push('<span class="v-warn">⚠ 上下不對稱 '+tbPct.toFixed(1)+'% — 上游可能有變徑或擋板，ASHRAE 111 建議增加直管段</span>');
+    }
+  }
+
+  // Low velocity warning (pitot tube accuracy limit ~1.5-2 m/s)
+  if (avg > 0 && avg < 2.0) {
+    checks.push('<span class="v-warn">⚠ 平均風速 '+avg.toFixed(2)+' m/s 偏低（<2 m/s），皮托管精度不足，建議改用熱線風速計</span>');
+  }
+
+  // Effective average excluding negatives
+  var negCount = 0, posSum = 0, posN = 0;
+  for (var i = 0; i < msList.length; i++) {
+    if (msList[i] < 0) negCount++;
+    else { posSum += msList[i]; posN++; }
+  }
+
   var vr = document.getElementById('validRow');
   vr.innerHTML = '<b style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:#8C1515">ASHRAE 111 驗核</b><br>' + checks.join('<br>');
+  if (negCount > 0 && posN > 0) {
+    var effAvg = posSum / posN;
+    var effArea = getArea();
+    vr.innerHTML += '<br><span style="color:#2255a8;font-weight:600">ℹ 有效風量估算（排除 '+negCount+' 個負值點）：平均 '+d(effAvg)+' '+ul+'，風量 '+(effAvg*effArea*3600).toFixed(1)+' CMH / '+(effAvg*effArea*60*35.3147).toFixed(1)+' CFM</span>';
+  }
   vr.style.display = '';
 
   var rows = '';
