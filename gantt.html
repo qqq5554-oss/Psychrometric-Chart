@@ -440,10 +440,14 @@ function padView(cv, lead, tail){
 function barHeight(){ return Math.max(4, Math.min(Number(state.barH)||12, 24)); }
 function fmtSlash(s){ return s ? s.replace(/-/g,'/') : ''; }
 function estTextW(str, fs){ let w=0; for(const ch of String(str)) w += (ch.charCodeAt(0)>255 ? fs : fs*0.56); return w; }
-function barLabel(it){   // 依開關組出長條後方文字:權重% + 工項名稱與日期
+function barLabel(it){   // 長條後方文字:權重% + 工項名稱與日期(工期)
   const parts=[];
   if(!state.hideWeight) parts.push((it._weight*100).toFixed(1)+'%');
-  if(state.showBarLabel && it.start && it.end) parts.push(it.name+' '+fmtSlash(it.start)+'→'+fmtSlash(it.end));
+  const parent=isParentCode(it.code);
+  const st=parent?it._startShown:it.start, en=parent?it._endShown:it.end;
+  // 一般小項:依「長條後顯示工項名稱與日期」開關;收合的大項:一律顯示名稱與總工期
+  if(((state.showBarLabel && !parent) || (parent && it.collapsed)) && st && en)
+    parts.push(it.name+' '+fmtSlash(st)+'→'+fmtSlash(en));
   return parts.join('　');
 }
 // 時間刻度分段:回傳 [{i0,i1,date}]
@@ -531,9 +535,11 @@ function renderChart(){
   let W=PADL+gv.ndays*DX+PADR;
   // 長條後有標籤(權重/工項名稱日期)時,加寬畫布避免文字被右緣切掉
   visibleItems().forEach(it=>{
-    if(isParentCode(it.code)||!it.start||!it.end) return;
+    const parent=isParentCode(it.code);
+    if(parent && !it.collapsed) return;
+    const en=parent?it._endShown:it.end; if(!en) return;
     const lbl=barLabel(it); if(!lbl) return;
-    const i1=Math.round((parseD(it.end)-gv.pStart)/86400000);
+    const i1=Math.round((parseD(en)-gv.pStart)/86400000);
     W=Math.max(W, xOf(i1+1)+5+estTextW(lbl,10)+10);
   });
   const showNums=!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
@@ -583,19 +589,22 @@ function svgBody(d,cv,bodyH){
       const i0=Math.round((parseD(st)-cv.pStart)/86400000);
       const i1=Math.round((parseD(en)-cv.pStart)/86400000);
       const bx=xOf(i0), bw=Math.max(DX*(i1-i0+1),3);
-      if(parent){
+      if(parent && !it.collapsed){
+        // 展開中的大項:細彙總條(兩端箭頭)
         const yy=yc-3.5;
         s+=`<rect x="${bx}" y="${yy}" width="${bw}" height="7" fill="var(--bar-parent)"/>`;
         s+=`<path d="M${bx} ${yy+7} l5 6 v-6 z M${bx+bw} ${yy+7} l-5 6 v-6 z" fill="var(--bar-parent)"/>`;
       } else {
-        const grp=parseInt(parentOf(it.code))%2;
+        // 小項,或收合的大項:實心長條(收合大項用深色主色、不可拖曳,後面接名稱與總工期)
         const bh=barHeight(), by=yc-bh/2;
-        s+=`<rect class="bar" data-id="${it.id}" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}"
-             fill="${grp?'var(--bar-child)':'var(--bar-child2)'}" stroke="#3a5670" style="cursor:ew-resize"/>`;
+        const fill=parent?'var(--bar-parent)':(parseInt(parentOf(it.code))%2?'var(--bar-child)':'var(--bar-child2)');
+        const barAttr=parent?'':' class="bar" style="cursor:ew-resize"';
+        s+=`<rect${barAttr} data-id="${it.id}" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}"
+             fill="${fill}" stroke="${parent?'#26333f':'#3a5670'}"/>`;
         const lbl=barLabel(it);
         if(lbl){ const lw=estTextW(lbl,10);
           s+=`<rect x="${bx+bw+3}" y="${yc-7}" width="${lw+4}" height="14" fill="#ffffff" opacity="0.72"/>`;
-          s+=`<text x="${bx+bw+5}" y="${yc+4}" font-size="10" fill="var(--muted)">${esc(lbl)}</text>`; }
+          s+=`<text x="${bx+bw+5}" y="${yc+4}" font-size="10" fill="var(--muted)" font-weight="${parent?600:400}">${esc(lbl)}</text>`; }
       }
     }
   });
@@ -756,9 +765,11 @@ function buildPrintSVG(){
   const gvp=padView(cv, LEADPAD, LEADPAD);   // 列印版同樣前後補留白
   let ganttRight=PADL+gvp.ndays*PDX;   // 甘特內容右緣(群組座標);有長條標籤時往右延伸
   vis.forEach(it=>{
-    if(isParentCode(it.code)||!it.start||!it.end) return;
+    const parent=isParentCode(it.code);
+    if(parent && !it.collapsed) return;
+    const en=parent?it._endShown:it.end; if(!en) return;
     const lbl=barLabel(it); if(!lbl) return;
-    const i1=Math.round((parseD(it.end)-gvp.pStart)/86400000);
+    const i1=Math.round((parseD(en)-gvp.pStart)/86400000);
     ganttRight=Math.max(ganttRight, PADL+(i1+1)*PDX+5+estTextW(lbl,9)+10);
   });
   const bodyTop=HEADH;
@@ -836,15 +847,16 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
     const parent=isParentCode(it.code); const st=parent?it._startShown:it.start,en=parent?it._endShown:it.end;
     if(st&&en){ const i0=Math.round((parseD(st)-cv.pStart)/86400000),i1=Math.round((parseD(en)-cv.pStart)/86400000);
       const bx=xO(i0),bw=Math.max(DXP*(i1-i0+1),3);
-      if(parent){ const yy=y+Math.max(6,rowH/2-5); s+=`<rect x="${bx}" y="${yy}" width="${bw}" height="7" fill="var(--bar-parent)"/>`;
+      const yc=y+rowH/2;
+      if(parent && !it.collapsed){ const yy=yc-3.5; s+=`<rect x="${bx}" y="${yy}" width="${bw}" height="7" fill="var(--bar-parent)"/>`;
         s+=`<path d="M${bx} ${yy+7} l5 6 v-6 z M${bx+bw} ${yy+7} l-5 6 v-6 z" fill="var(--bar-parent)"/>`; }
-      else { const grp=parseInt(parentOf(it.code))%2;
-        const bh=Math.min(barHeight(), rowH-4), by=y+(rowH-bh)/2;
-        s+=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}" fill="${grp?'var(--bar-child)':'var(--bar-child2)'}" stroke="#3a5670"/>`;
+      else { const bh=Math.min(barHeight(), rowH-4), by=yc-bh/2;
+        const fill=parent?'var(--bar-parent)':(parseInt(parentOf(it.code))%2?'var(--bar-child)':'var(--bar-child2)');
+        s+=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}" fill="${fill}" stroke="${parent?'#26333f':'#3a5670'}"/>`;
         const lbl=barLabel(it);
         if(lbl){ const lw=estTextW(lbl,9);
-          s+=`<rect x="${bx+bw+3}" y="${y+rowH/2-6.5}" width="${lw+4}" height="13" fill="#ffffff" opacity="0.72"/>`;
-          s+=`<text x="${bx+bw+5}" y="${y+rowH/2+3.5}" font-size="9" fill="var(--muted)">${esc(lbl)}</text>`; } } }
+          s+=`<rect x="${bx+bw+3}" y="${yc-6.5}" width="${lw+4}" height="13" fill="#ffffff" opacity="0.72"/>`;
+          s+=`<text x="${bx+bw+5}" y="${yc+3.5}" font-size="9" fill="var(--muted)" font-weight="${parent?600:400}">${esc(lbl)}</text>`; } } }
   });
   if(!state.hideProgress){
   const yPct=p=>bodyTop+bodyH*(1-p/100);
