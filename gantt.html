@@ -35,6 +35,18 @@ header.bar h1 .tag{color:var(--accent);font-weight:800}
 .btn:hover{border-color:var(--ink)}
 .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
 .btn.warn{color:#b00}
+/* 顯示設定下拉面板 + toggle 開關 */
+.dropdown{position:relative;display:inline-block}
+.dropdown-panel{position:absolute;top:calc(100% + 6px);right:0;min-width:250px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 26px rgba(0,0,0,.16);padding:6px 4px;z-index:60;display:none}
+.dropdown-panel.show{display:block}
+.sw-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 10px;font-size:13px;color:var(--ink)}
+.sw-row+.sw-row{border-top:1px solid var(--line2)}
+.sw-row .val{font-variant-numeric:tabular-nums;color:var(--muted);min-width:34px;text-align:right}
+.sw{appearance:none;-webkit-appearance:none;width:40px;height:22px;border-radius:22px;background:#c9c7bf;position:relative;cursor:pointer;transition:background .18s;flex:0 0 auto;margin:0}
+.sw:checked{background:#2e8b57}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .18s}
+.sw:checked::after{left:20px}
+.rng{width:120px}
 .meta{font-size:12px;color:var(--muted)}
 .meta b{color:var(--ink)}
 
@@ -111,10 +123,17 @@ svg{display:block;font-family:inherit}
       <span class="spacer"></span>
       <span class="meta">總金額 <b id="mTotal">—</b>　工期 <b id="mDays">—</b> 天　預定 <b id="mFinish">—</b></span>
       <button class="btn" id="btnAddParent">＋大工項</button>
-      <button class="btn" id="btnToggleAmt">隱藏金額</button>
-      <button class="btn" id="btnToggleWt">隱藏權重</button>
-      <button class="btn" id="btnToggleProg">隱藏進度線</button>
-      <button class="btn" id="btnToggleToday">隱藏今日線</button>
+      <div class="dropdown" id="viewMenu">
+        <button class="btn" id="btnViewOpts">顯示設定 ▾</button>
+        <div class="dropdown-panel" id="viewPanel">
+          <div class="sw-row"><span>顯示金額</span><input type="checkbox" class="sw" id="swAmt"></div>
+          <div class="sw-row"><span>顯示權重 %</span><input type="checkbox" class="sw" id="swWt"></div>
+          <div class="sw-row"><span>顯示進度線（S曲線）</span><input type="checkbox" class="sw" id="swProg"></div>
+          <div class="sw-row"><span>顯示今日線</span><input type="checkbox" class="sw" id="swToday"></div>
+          <div class="sw-row"><span>長條後顯示工項名稱與日期</span><input type="checkbox" class="sw" id="swBarLabel"></div>
+          <div class="sw-row"><span>長條粗細</span><span><input type="range" class="rng" id="barThickRange" min="6" max="22" step="1"> <span class="val" id="barThickVal"></span></span></div>
+        </div>
+      </div>
       <label style="font-size:13px;color:var(--muted)">刻度
         <select id="zoomSel" style="padding:4px 6px;border:1px solid var(--line);border-radius:5px">
           <option value="day">日</option><option value="week">週</option>
@@ -386,6 +405,16 @@ function padView(cv, lead, tail){
   return { pStart: addDays(cv.pStart, -lead), pEnd: cv.pEnd, lead, ndays: cv.ndays + lead + tail,
     weeks: cv.weeks.map(w=>({...w, mondayIdx:w.mondayIdx+lead, endIdx:w.endIdx+lead})) };
 }
+// 長條粗細(px,可由「顯示設定」調整,預設 12)、日期斜線格式、長條後標籤文字
+function barHeight(){ return Math.max(4, Math.min(Number(state.barH)||12, 24)); }
+function fmtSlash(s){ return s ? s.replace(/-/g,'/') : ''; }
+function estTextW(str, fs){ let w=0; for(const ch of String(str)) w += (ch.charCodeAt(0)>255 ? fs : fs*0.56); return w; }
+function barLabel(it){   // 依開關組出長條後方文字:權重% + 工項名稱與日期
+  const parts=[];
+  if(!state.hideWeight) parts.push((it._weight*100).toFixed(1)+'%');
+  if(state.showBarLabel && it.start && it.end) parts.push(it.name+' '+fmtSlash(it.start)+'→'+fmtSlash(it.end));
+  return parts.join('　');
+}
 // 時間刻度分段:回傳 [{i0,i1,date}]
 function timeSpans(cv, keyFn){
   const out=[]; if(!cv.ndays) return out;
@@ -458,7 +487,14 @@ function renderChart(){
   const gv=padView(cv, LEADPAD, LEADPAD);   // 前後各補留白,月份/週次標籤才不會被邊緣切掉
   const rows=state.items.length;
   const bodyH=rows*ROWH;
-  const W=PADL+gv.ndays*DX+PADR;
+  let W=PADL+gv.ndays*DX+PADR;
+  // 長條後有標籤(權重/工項名稱日期)時,加寬畫布避免文字被右緣切掉
+  state.items.forEach(it=>{
+    if(isParentCode(it.code)||!it.start||!it.end) return;
+    const lbl=barLabel(it); if(!lbl) return;
+    const i1=Math.round((parseD(it.end)-gv.pStart)/86400000);
+    W=Math.max(W, xOf(i1+1)+5+estTextW(lbl,10)+10);
+  });
   const showNums=!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
   const bH=bodyH+(showNums?FOOTH:(state.hideProgress?6:12));
   geo={pStart:gv.pStart,ndays:gv.ndays,bodyTop:HEADH,bodyH};
@@ -512,9 +548,13 @@ function svgBody(d,cv,bodyH){
         s+=`<path d="M${bx} ${yy+7} l5 6 v-6 z M${bx+bw} ${yy+7} l-5 6 v-6 z" fill="var(--bar-parent)"/>`;
       } else {
         const grp=parseInt(parentOf(it.code))%2;
-        s+=`<rect class="bar" data-id="${it.id}" x="${bx}" y="${y+5}" width="${bw}" height="${ROWH-10}" rx="3"
+        const bh=barHeight(), by=y+(ROWH-bh)/2;
+        s+=`<rect class="bar" data-id="${it.id}" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}"
              fill="${grp?'var(--bar-child)':'var(--bar-child2)'}" stroke="#3a5670" style="cursor:ew-resize"/>`;
-        if(!state.hideWeight) s+=`<text x="${bx+bw+4}" y="${y+ROWH/2+4}" font-size="10" fill="var(--muted)">${(it._weight*100).toFixed(1)}%</text>`;
+        const lbl=barLabel(it);
+        if(lbl){ const lw=estTextW(lbl,10);
+          s+=`<rect x="${bx+bw+3}" y="${y+ROWH/2-7}" width="${lw+4}" height="14" fill="#ffffff" opacity="0.72"/>`;
+          s+=`<text x="${bx+bw+5}" y="${y+ROWH/2+4}" font-size="10" fill="var(--muted)">${esc(lbl)}</text>`; }
       }
     }
   });
@@ -672,9 +712,15 @@ function buildPrintSVG(){
             : Math.max(12, Math.min(16, Math.floor(1600/cv.ndays)));
   LEADPAD=padDaysFor(PDX);
   const gvp=padView(cv, LEADPAD, LEADPAD);   // 列印版同樣前後補留白
-  const ganttW=gvp.ndays*PDX;
+  let ganttRight=PADL+gvp.ndays*PDX;   // 甘特內容右緣(群組座標);有長條標籤時往右延伸
+  state.items.forEach(it=>{
+    if(isParentCode(it.code)||!it.start||!it.end) return;
+    const lbl=barLabel(it); if(!lbl) return;
+    const i1=Math.round((parseD(it.end)-gvp.pStart)/86400000);
+    ganttRight=Math.max(ganttRight, PADL+(i1+1)*PDX+5+estTextW(lbl,9)+10);
+  });
   const bodyTop=HEADH;
-  const totalW=tableW+8+ganttW+PADR;
+  const totalW=tableW+8+ganttRight+PADR;
   const _footShown = !state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
   const fixedH=bodyTop+(_footShown?FOOTH:12)+24;   // 表頭+footer+標題
   // 自動填滿頁面:列數少時加高列高,讓整張接近 A3 比例
@@ -750,7 +796,12 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
       if(parent){ const yy=y+Math.max(6,rowH/2-5); s+=`<rect x="${bx}" y="${yy}" width="${bw}" height="7" fill="var(--bar-parent)"/>`;
         s+=`<path d="M${bx} ${yy+7} l5 6 v-6 z M${bx+bw} ${yy+7} l-5 6 v-6 z" fill="var(--bar-parent)"/>`; }
       else { const grp=parseInt(parentOf(it.code))%2;
-        s+=`<rect x="${bx}" y="${y+4}" width="${bw}" height="${rowH-8}" rx="3" fill="${grp?'var(--bar-child)':'var(--bar-child2)'}" stroke="#3a5670"/>`; } }
+        const bh=Math.min(barHeight(), rowH-4), by=y+(rowH-bh)/2;
+        s+=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}" fill="${grp?'var(--bar-child)':'var(--bar-child2)'}" stroke="#3a5670"/>`;
+        const lbl=barLabel(it);
+        if(lbl){ const lw=estTextW(lbl,9);
+          s+=`<rect x="${bx+bw+3}" y="${y+rowH/2-6.5}" width="${lw+4}" height="13" fill="#ffffff" opacity="0.72"/>`;
+          s+=`<text x="${bx+bw+5}" y="${y+rowH/2+3.5}" font-size="9" fill="var(--muted)">${esc(lbl)}</text>`; } } }
   });
   if(!state.hideProgress){
   const yPct=p=>bodyTop+bodyH*(1-p/100);
@@ -945,10 +996,14 @@ function renderAll(){
   document.getElementById('titleInput').value=state.title||'';
   document.getElementById('tablewrap').classList.toggle('hide-amt', !!state.hideAmount);
   document.getElementById('tablewrap').classList.toggle('hide-wt', !!state.hideWeight);
-  document.getElementById('btnToggleAmt').textContent=state.hideAmount?'顯示金額':'隱藏金額';
-  document.getElementById('btnToggleWt').textContent=state.hideWeight?'顯示權重':'隱藏權重';
-  document.getElementById('btnToggleProg').textContent=state.hideProgress?'顯示進度線':'隱藏進度線';
-  document.getElementById('btnToggleToday').textContent=state.hideToday?'顯示今日線':'隱藏今日線';
+  // 同步「顯示設定」面板的開關與滑桿
+  document.getElementById('swAmt').checked=!state.hideAmount;
+  document.getElementById('swWt').checked=!state.hideWeight;
+  document.getElementById('swProg').checked=!state.hideProgress;
+  document.getElementById('swToday').checked=!state.hideToday;
+  document.getElementById('swBarLabel').checked=!!state.showBarLabel;
+  document.getElementById('barThickRange').value=barHeight();
+  document.getElementById('barThickVal').textContent=barHeight()+'px';
   document.getElementById('zoomSel').value=state.zoom||'day';
   renderTable(); renderChart(); saveAutosave();
 }
@@ -956,10 +1011,23 @@ function renderAll(){
 /* ===================== 綁定 ===================== */
 document.getElementById('titleInput').addEventListener('input',e=>{state.title=e.target.value;saveAutosave();});
 document.getElementById('btnAddParent').addEventListener('click',addParent);
-document.getElementById('btnToggleAmt').addEventListener('click',()=>{ state.hideAmount=!state.hideAmount; renderAll(); });
-document.getElementById('btnToggleWt').addEventListener('click',()=>{ state.hideWeight=!state.hideWeight; renderAll(); });
-document.getElementById('btnToggleProg').addEventListener('click',()=>{ state.hideProgress=!state.hideProgress; renderAll(); });
-document.getElementById('btnToggleToday').addEventListener('click',()=>{ state.hideToday=!state.hideToday; renderAll(); });
+/* 顯示設定下拉面板 */
+(function(){
+  const menu=document.getElementById('viewMenu'), btn=document.getElementById('btnViewOpts'), panel=document.getElementById('viewPanel');
+  btn.addEventListener('click',e=>{ e.stopPropagation(); panel.classList.toggle('show'); });
+  panel.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>panel.classList.remove('show'));
+})();
+document.getElementById('swAmt').addEventListener('change',e=>{ state.hideAmount=!e.target.checked; renderAll(); });
+document.getElementById('swWt').addEventListener('change',e=>{ state.hideWeight=!e.target.checked; renderAll(); });
+document.getElementById('swProg').addEventListener('change',e=>{ state.hideProgress=!e.target.checked; renderAll(); });
+document.getElementById('swToday').addEventListener('change',e=>{ state.hideToday=!e.target.checked; renderAll(); });
+document.getElementById('swBarLabel').addEventListener('change',e=>{ state.showBarLabel=e.target.checked; renderAll(); });
+document.getElementById('barThickRange').addEventListener('input',e=>{
+  state.barH=Number(e.target.value);
+  document.getElementById('barThickVal').textContent=state.barH+'px';
+  renderChart(); saveAutosave();   // 拖動時只重畫甘特,較順
+});
 document.getElementById('zoomSel').addEventListener('change',e=>{ state.zoom=e.target.value; renderAll(); });
 /* 分隔棒:左右拖曳調整表格/圖表比例 */
 (function(){
