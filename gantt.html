@@ -47,6 +47,11 @@ header.bar h1 .tag{color:var(--accent);font-weight:800}
 .sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .18s}
 .sw:checked::after{left:20px}
 .rng{width:120px}
+.dropdown-panel.menu{min-width:200px}
+.menu-item{display:block;width:100%;text-align:left;border:none;background:transparent;padding:9px 12px;font-size:13px;color:var(--ink);cursor:pointer;white-space:nowrap;border-radius:6px}
+.menu-item:hover{background:var(--sel)}
+.menu-item .sub{color:var(--muted);font-size:11px}
+.menu-sep{height:1px;background:var(--line2);margin:4px 6px}
 .meta{font-size:12px;color:var(--muted)}
 .meta b{color:var(--ink)}
 
@@ -139,12 +144,23 @@ svg{display:block;font-family:inherit}
           <option value="day">日</option><option value="week">週</option>
           <option value="month">月</option><option value="quarter">季</option><option value="year">年</option>
         </select></label>
-      <button class="btn" id="btnImportXlsx">匯入 Excel</button>
-      <button class="btn" id="btnExportXlsx">匯出 Excel</button>
-      <button class="btn" id="btnSaveJson">存檔</button>
-      <button class="btn" id="btnLoadJson">讀檔</button>
-      <button class="btn primary" id="btnPrint">匯出 A3</button>
-      <button class="btn" id="btnExportSvg">匯出 SVG</button>
+      <div class="dropdown" id="fileMenu">
+        <button class="btn" id="btnFileMenu">檔案 ▾</button>
+        <div class="dropdown-panel menu">
+          <button class="menu-item" id="btnSaveJson">存檔　<span class="sub">.json 工作檔</span></button>
+          <button class="menu-item" id="btnLoadJson">讀檔　<span class="sub">.json</span></button>
+          <div class="menu-sep"></div>
+          <button class="menu-item" id="btnImportXlsx">匯入 Excel　<span class="sub">.xlsx</span></button>
+        </div>
+      </div>
+      <div class="dropdown" id="exportMenu">
+        <button class="btn primary" id="btnExportMenu">匯出 ▾</button>
+        <div class="dropdown-panel menu">
+          <button class="menu-item" id="btnPrint">匯出 A3　<span class="sub">列印／PDF</span></button>
+          <button class="menu-item" id="btnExportSvg">匯出 SVG　<span class="sub">圖檔</span></button>
+          <button class="menu-item" id="btnExportXlsx">匯出 Excel　<span class="sub">.xlsx</span></button>
+        </div>
+      </div>
       <input type="file" id="fileXlsx" accept=".xlsx" hidden>
       <input type="file" id="fileJson" accept=".json" hidden>
     </div>
@@ -1012,12 +1028,20 @@ function renderAll(){
 /* ===================== 綁定 ===================== */
 document.getElementById('titleInput').addEventListener('input',e=>{state.title=e.target.value;saveAutosave();});
 document.getElementById('btnAddParent').addEventListener('click',addParent);
-/* 顯示設定下拉面板 */
+/* 下拉選單(顯示設定 / 檔案 / 匯出);多個互斥,點外面關閉 */
 (function(){
-  const menu=document.getElementById('viewMenu'), btn=document.getElementById('btnViewOpts'), panel=document.getElementById('viewPanel');
-  btn.addEventListener('click',e=>{ e.stopPropagation(); panel.classList.toggle('show'); });
-  panel.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>panel.classList.remove('show'));
+  document.querySelectorAll('.dropdown > .btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const panel=btn.parentElement.querySelector('.dropdown-panel');
+      const open=panel.classList.contains('show');
+      document.querySelectorAll('.dropdown-panel.show').forEach(p=>p.classList.remove('show'));
+      if(!open) panel.classList.add('show');
+    });
+  });
+  // 設定面板(toggle 開關)點內部不關閉;動作選單(檔案/匯出)點項目後自然關閉
+  document.getElementById('viewPanel').addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>document.querySelectorAll('.dropdown-panel.show').forEach(p=>p.classList.remove('show')));
 })();
 document.getElementById('swAmt').addEventListener('change',e=>{ state.hideAmount=!e.target.checked; renderAll(); });
 document.getElementById('swWt').addEventListener('change',e=>{ state.hideWeight=!e.target.checked; renderAll(); });
