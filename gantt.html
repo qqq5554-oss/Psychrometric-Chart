@@ -84,6 +84,11 @@ td.amount .cell-in{text-align:right}
 td.locked{color:var(--muted);background:repeating-linear-gradient(45deg,#fafafa,#fafafa 4px,#f3f3f0 4px,#f3f3f0 8px)}
 .rowbtn{cursor:pointer;color:var(--muted);font-weight:700}
 .rowbtn:hover{color:#b00}
+/* 大項收合三角形 */
+td.name{position:relative}
+.caret{position:absolute;left:1px;top:50%;transform:translateY(-50%);width:14px;height:16px;line-height:16px;text-align:center;cursor:pointer;color:var(--muted);font-size:10px;user-select:none;z-index:1}
+.caret:hover{color:var(--ink)}
+tr.parent td.name .cell-in{padding-left:17px}
 .pct{font-variant-numeric:tabular-nums}
 
 .chartwrap{flex:1;overflow:auto;background:#fff;position:relative}
@@ -324,10 +329,19 @@ function recompute(it, edited){
 /* ===================== 渲染：左表 ===================== */
 function nf(n){ return (n==null||isNaN(n))?'':Number(n).toLocaleString('en-US'); }
 function pf(n){ return (n==null||isNaN(n))?'':(n*100).toFixed(2)+'%'; }
+// 收合:大項標記 collapsed 時,隱藏其底下小項;回傳目前應顯示的列(左表與甘特共用,列數才會一致)
+function visibleItems(){
+  const out=[]; let hideCode=null;
+  state.items.forEach(it=>{
+    if(isParentCode(it.code)){ hideCode = it.collapsed ? it.code : null; out.push(it); }
+    else { if(hideCode && parentOf(it.code)===hideCode) return; out.push(it); }
+  });
+  return out;
+}
 
 function renderTable(){
   const tb=document.getElementById('tbody'); tb.innerHTML='';
-  state.items.forEach(it=>{
+  visibleItems().forEach(it=>{
     const parent=isParentCode(it.code);
     const tr=document.createElement('tr');
     tr.className=parent?'parent':'leaf';
@@ -337,7 +351,7 @@ function renderTable(){
     if(parent){
       tr.innerHTML=`
         <td class="code">${it.code}</td>
-        <td class="name"><input class="cell-in" data-f="name" value="${esc(it.name)}"></td>
+        <td class="name"><span class="caret" data-act="toggle" title="收合／展開小項">${it.collapsed?'▸':'▾'}</span><input class="cell-in" data-f="name" value="${esc(it.name)}"></td>
         <td class="amount locked">${nf(it._amountShown)}</td>
         <td class="pct">${pf(it._weight)}</td>
         <td class="locked dt">${it._startShown||''}</td>
@@ -385,6 +399,7 @@ function renderTable(){
       if(act==='del'){ delItem(it); }
       if(act==='addchild'){ addChild(it.code); }
     }));
+    tr.querySelector('.caret')?.addEventListener('click',()=>{ it.collapsed=!it.collapsed; renderAll(); });
     tb.appendChild(tr);
   });
 }
@@ -493,6 +508,16 @@ function buildGridlines(cv, dx, top, h){
   return s;
 }
 let geo=null;
+// 量測左表每一列的實際高度,讓右側甘特逐列對齊(不同瀏覽器/OS 的日期輸入框高度不一,無法只用固定 26px)
+let rowGeom=null;
+function measureRows(){
+  const trs=[...document.querySelectorAll('#tbody tr')];
+  const heights=trs.map(t=>t.getBoundingClientRect().height||ROWH);
+  const tops=[]; let acc=0; heights.forEach(h=>{ tops.push(acc); acc+=h; });
+  rowGeom={heights, tops, total:acc};
+}
+function rowTop(ri){ return (rowGeom&&rowGeom.tops[ri]!=null)? rowGeom.tops[ri] : ri*ROWH; }
+function rowHi(ri){ return (rowGeom&&rowGeom.heights[ri]!=null)? rowGeom.heights[ri] : ROWH; }
 
 function renderChart(){
   const d=derive(); const cv=computeCurve(d);
@@ -501,11 +526,11 @@ function renderChart(){
   DX=(ZOOM[state.zoom]||ZOOM.day).dx;   // 依刻度設定每日像素寬
   LEADPAD=padDaysFor(DX);
   const gv=padView(cv, LEADPAD, LEADPAD);   // 前後各補留白,月份/週次標籤才不會被邊緣切掉
-  const rows=state.items.length;
-  const bodyH=rows*ROWH;
+  const rows=visibleItems().length;
+  const bodyH=(rowGeom&&rowGeom.total)? rowGeom.total : rows*ROWH;
   let W=PADL+gv.ndays*DX+PADR;
   // 長條後有標籤(權重/工項名稱日期)時,加寬畫布避免文字被右緣切掉
-  state.items.forEach(it=>{
+  visibleItems().forEach(it=>{
     if(isParentCode(it.code)||!it.start||!it.end) return;
     const lbl=barLabel(it); if(!lbl) return;
     const i1=Math.round((parseD(it.end)-gv.pStart)/86400000);
@@ -548,10 +573,10 @@ function svgBody(d,cv,bodyH){
   // 刻度格線
   s+=buildGridlines(cv, DX, 0, bodyH);
   // 列高亮帶(供雙向 hover) + 列底線 + 長條
-  state.items.forEach((it,ri)=>{
-    const y=ri*ROWH;
-    s+=`<rect class="rowband" data-id="${it.id}" x="${PADL}" y="${y}" width="${cv.ndays*DX}" height="${ROWH}" fill="transparent" pointer-events="all"/>`;
-    s+=`<line x1="${PADL}" y1="${y+ROWH}" x2="${PADL+cv.ndays*DX}" y2="${y+ROWH}" stroke="var(--line2)"/>`;
+  visibleItems().forEach((it,ri)=>{
+    const y=rowTop(ri), rh=rowHi(ri), yc=y+rh/2;
+    s+=`<rect class="rowband" data-id="${it.id}" x="${PADL}" y="${y}" width="${cv.ndays*DX}" height="${rh}" fill="transparent" pointer-events="all"/>`;
+    s+=`<line x1="${PADL}" y1="${y+rh}" x2="${PADL+cv.ndays*DX}" y2="${y+rh}" stroke="var(--line2)"/>`;
     const parent=isParentCode(it.code);
     const st=parent?it._startShown:it.start, en=parent?it._endShown:it.end;
     if(st&&en){
@@ -559,18 +584,18 @@ function svgBody(d,cv,bodyH){
       const i1=Math.round((parseD(en)-cv.pStart)/86400000);
       const bx=xOf(i0), bw=Math.max(DX*(i1-i0+1),3);
       if(parent){
-        const yy=y+8;
+        const yy=yc-3.5;
         s+=`<rect x="${bx}" y="${yy}" width="${bw}" height="7" fill="var(--bar-parent)"/>`;
         s+=`<path d="M${bx} ${yy+7} l5 6 v-6 z M${bx+bw} ${yy+7} l-5 6 v-6 z" fill="var(--bar-parent)"/>`;
       } else {
         const grp=parseInt(parentOf(it.code))%2;
-        const bh=barHeight(), by=y+(ROWH-bh)/2;
+        const bh=barHeight(), by=yc-bh/2;
         s+=`<rect class="bar" data-id="${it.id}" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}"
              fill="${grp?'var(--bar-child)':'var(--bar-child2)'}" stroke="#3a5670" style="cursor:ew-resize"/>`;
         const lbl=barLabel(it);
         if(lbl){ const lw=estTextW(lbl,10);
-          s+=`<rect x="${bx+bw+3}" y="${y+ROWH/2-7}" width="${lw+4}" height="14" fill="#ffffff" opacity="0.72"/>`;
-          s+=`<text x="${bx+bw+5}" y="${y+ROWH/2+4}" font-size="10" fill="var(--muted)">${esc(lbl)}</text>`; }
+          s+=`<rect x="${bx+bw+3}" y="${yc-7}" width="${lw+4}" height="14" fill="#ffffff" opacity="0.72"/>`;
+          s+=`<text x="${bx+bw+5}" y="${yc+4}" font-size="10" fill="var(--muted)">${esc(lbl)}</text>`; }
       }
     }
   });
@@ -711,7 +736,8 @@ function closeActual(){ document.getElementById('actualModal').classList.remove(
 function buildPrintSVG(){
   const d=derive(); const cv=computeCurve(d);
   if(!cv.pStart) return '';
-  const rows=state.items.length;
+  const vis=visibleItems();
+  const rows=vis.length;
   let cols=[
     {k:'code',  label:'項次',    w:44, align:'middle'},
     {k:'name',  label:'工程項目', w:236,align:'start'},
@@ -729,7 +755,7 @@ function buildPrintSVG(){
   LEADPAD=padDaysFor(PDX);
   const gvp=padView(cv, LEADPAD, LEADPAD);   // 列印版同樣前後補留白
   let ganttRight=PADL+gvp.ndays*PDX;   // 甘特內容右緣(群組座標);有長條標籤時往右延伸
-  state.items.forEach(it=>{
+  vis.forEach(it=>{
     if(isParentCode(it.code)||!it.start||!it.end) return;
     const lbl=barLabel(it); if(!lbl) return;
     const i1=Math.round((parseD(it.end)-gvp.pStart)/86400000);
@@ -751,7 +777,7 @@ function buildPrintSVG(){
   cols.forEach(c=>{ s+=`<text x="${cx+c.w/2}" y="${bodyTop/2+4}" text-anchor="middle" font-weight="700">${c.label}</text>`;
     s+=`<line x1="${cx}" y1="0" x2="${cx}" y2="${bodyTop+bodyH}" stroke="var(--line2)"/>`; cx+=c.w; });
   s+=`<line x1="${tableW}" y1="0" x2="${tableW}" y2="${bodyTop+bodyH}" stroke="var(--line)"/>`;
-  state.items.forEach((it,ri)=>{
+  vis.forEach((it,ri)=>{
     const y=bodyTop+ri*rowH; const parent=isParentCode(it.code);
     if(parent) s+=`<rect x="0" y="${y}" width="${tableW}" height="${rowH}" fill="#eef1f3"/>`;
     s+=`<line x1="0" y1="${y+rowH}" x2="${tableW}" y2="${y+rowH}" stroke="var(--line2)"/>`;
@@ -805,7 +831,7 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
   }
   s+=buildTimeHeader(cv, DXP);
   s+=buildGridlines(cv, DXP, bodyTop, bodyH);
-  state.items.forEach((it,ri)=>{ const y=bodyTop+ri*rowH;
+  visibleItems().forEach((it,ri)=>{ const y=bodyTop+ri*rowH;
     s+=`<line x1="${PADL}" y1="${y+rowH}" x2="${PADL+cv.ndays*DXP}" y2="${y+rowH}" stroke="var(--line2)"/>`;
     const parent=isParentCode(it.code); const st=parent?it._startShown:it.start,en=parent?it._endShown:it.end;
     if(st&&en){ const i0=Math.round((parseD(st)-cv.pStart)/86400000),i1=Math.round((parseD(en)-cv.pStart)/86400000);
@@ -1022,7 +1048,7 @@ function renderAll(){
   document.getElementById('barThickRange').value=barHeight();
   document.getElementById('barThickVal').textContent=barHeight()+'px';
   document.getElementById('zoomSel').value=state.zoom||'day';
-  renderTable(); renderChart(); saveAutosave();
+  renderTable(); measureRows(); renderChart(); saveAutosave();
 }
 
 /* ===================== 綁定 ===================== */
