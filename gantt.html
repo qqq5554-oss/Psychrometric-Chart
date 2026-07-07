@@ -686,7 +686,7 @@ function buildPrintSVG(){
   let s=`<g font-size="10">`;
   let cx=0;
   s+=`<rect x="0" y="0" width="${tableW}" height="${bodyTop}" fill="#f1efe8" stroke="var(--line)"/>`;
-  cols.forEach(c=>{ s+=`<text x="${cx+c.w/2}" y="${bodyTop-6}" text-anchor="middle" font-weight="700">${c.label}</text>`;
+  cols.forEach(c=>{ s+=`<text x="${cx+c.w/2}" y="${bodyTop/2+4}" text-anchor="middle" font-weight="700">${c.label}</text>`;
     s+=`<line x1="${cx}" y1="0" x2="${cx}" y2="${bodyTop+bodyH}" stroke="var(--line2)"/>`; cx+=c.w; });
   s+=`<line x1="${tableW}" y1="0" x2="${tableW}" y2="${bodyTop+bodyH}" stroke="var(--line)"/>`;
   state.items.forEach((it,ri)=>{
