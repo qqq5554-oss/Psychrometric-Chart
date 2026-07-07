@@ -378,6 +378,14 @@ function wrapText(str, fontSize, maxW, maxLines){
 const ROWH=26, HEADH=54, FOOTH=98, PADL=8, PADR=64;
 let DX=18;   // 目前每日像素寬(依刻度縮放,由 renderChart 設定)
 const ZOOM={ day:{dx:18,label:'日'}, week:{dx:7,label:'週'}, month:{dx:2.6,label:'月'}, quarter:{dx:1.3,label:'季'}, year:{dx:0.6,label:'年'} };
+let LEADPAD=0;   // 顯示用前後留白天數(純視覺,週次/曲線不受影響),由 renderChart/buildPrintSVG 設定
+// 依每日像素寬決定要補幾天留白:讓最前/最後的月份色帶夠寬,標籤才不會被邊緣切掉
+function padDaysFor(dx){ return Math.min(Math.max(4, Math.ceil(60/dx)), 14); }
+// 產生「含前後留白」的顯示用範圍;週次(mondayIdx/endIdx)整體平移 lead 天,cum/inc 等數值不變
+function padView(cv, lead, tail){
+  return { pStart: addDays(cv.pStart, -lead), pEnd: cv.pEnd, lead, ndays: cv.ndays + lead + tail,
+    weeks: cv.weeks.map(w=>({...w, mondayIdx:w.mondayIdx+lead, endIdx:w.endIdx+lead})) };
+}
 // 時間刻度分段:回傳 [{i0,i1,date}]
 function timeSpans(cv, keyFn){
   const out=[]; if(!cv.ndays) return out;
@@ -385,6 +393,19 @@ function timeSpans(cv, keyFn){
   for(let i=1;i<=cv.ndays;i++){ const k=(i<cv.ndays)?keyFn(addDays(cv.pStart,i)):Symbol();
     if(k!==cur){ out.push({i0:start,i1:i,date:addDays(cv.pStart,start)}); start=i; cur=k; } }
   return out;
+}
+// 週次色帶(day/week 檢視):畫滿整個顯示範圍(含留白),但只在實際工期週標 W 編號
+function weekBands(cv, xo, y0, h, fs){
+  if(!cv.weeks || !cv.weeks.length) return '';
+  const projW1=mondayOf(cv.weeks[0].monday); let s='';
+  timeSpans(cv, d=>weekKey(d)).forEach((p,idx)=>{
+    const x0=xo(p.i0), x1=xo(p.i1);
+    s+=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${h}" fill="${idx%2?'#fff':'#f7f6f0'}" stroke="var(--line2)"/>`;
+    const wNum=Math.round((mondayOf(p.date)-projW1)/604800000)+1;
+    if(wNum>=1 && wNum<=cv.weeks.length)
+      s+=`<text x="${(x0+x1)/2}" y="${y0+h/2+3}" text-anchor="middle" font-size="${fs}" fill="var(--muted)">W${wNum}</text>`;
+  });
+  return s;
 }
 // 共用表頭(依 state.zoom 決定刻度),xo=每日像素寬
 function buildTimeHeader(cv, dx){
@@ -397,16 +418,12 @@ function buildTimeHeader(cv, dx){
   const qt=timeSpans(cv,d=>d.getFullYear()*4+Math.floor(d.getMonth()/3));
   if(z==='day'){
     band(mo,0,18,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,12,'font-weight="700"');
-    cv.weeks.forEach((w,wi)=>{ const x0=xo(w.mondayIdx),x1=xo(Math.min(w.endIdx+1,cv.ndays));
-      s+=`<rect x="${x0}" y="18" width="${x1-x0}" height="16" fill="${wi%2?'#fff':'#f7f6f0'}" stroke="var(--line2)"/>`;
-      s+=`<text x="${(x0+x1)/2}" y="30" text-anchor="middle" font-size="10" fill="var(--muted)">W${wi+1}</text>`; });
+    s+=weekBands(cv, xo, 18, 16, 10);
     for(let i=0;i<cv.ndays;i++){ const day=addDays(cv.pStart,i);
       s+=`<text x="${xo(i)+dx/2}" y="46" text-anchor="middle" font-size="9" fill="${[0,6].includes(day.getDay())?'#c0392b':'#888'}">${day.getDate()}</text>`; }
   } else if(z==='week'){
     band(mo,0,26,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,12,'font-weight="700"');
-    cv.weeks.forEach((w,wi)=>{ const x0=xo(w.mondayIdx),x1=xo(Math.min(w.endIdx+1,cv.ndays));
-      s+=`<rect x="${x0}" y="26" width="${x1-x0}" height="28" fill="${wi%2?'#fff':'#f7f6f0'}" stroke="var(--line2)"/>`;
-      s+=`<text x="${(x0+x1)/2}" y="44" text-anchor="middle" font-size="10" fill="var(--muted)">W${wi+1}</text>`; });
+    s+=weekBands(cv, xo, 26, 28, 10);
   } else if(z==='month'){
     band(yr,0,22,p=>`${p.date.getFullYear()}`,13,'font-weight="700"');
     band(mo,22,32,p=>`${p.date.getMonth()+1}月`,11,'fill="var(--muted)"');
@@ -437,14 +454,16 @@ function renderChart(){
   const wrap=document.getElementById('chartwrap');
   if(!cv.pStart){ wrap.innerHTML='<div style="padding:20px;color:#999">尚無有效日期，請於左表輸入工項起迄。</div>'; return; }
   DX=(ZOOM[state.zoom]||ZOOM.day).dx;   // 依刻度設定每日像素寬
+  LEADPAD=padDaysFor(DX);
+  const gv=padView(cv, LEADPAD, LEADPAD);   // 前後各補留白,月份/週次標籤才不會被邊緣切掉
   const rows=state.items.length;
   const bodyH=rows*ROWH;
-  const W=PADL+cv.ndays*DX+PADR;
+  const W=PADL+gv.ndays*DX+PADR;
   const showNums=!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
   const bH=bodyH+(showNums?FOOTH:(state.hideProgress?6:12));
-  geo={pStart:cv.pStart,ndays:cv.ndays,bodyTop:HEADH,bodyH};
-  const head=`<svg class="ghead" width="${W}" height="${HEADH}" viewBox="0 0 ${W} ${HEADH}">${svgHeader(cv,bodyH)}</svg>`;
-  const body=`<svg id="gsvg" class="gbody" width="${W}" height="${bH}" viewBox="0 0 ${W} ${bH}">${svgBody(d,cv,bodyH)}</svg>`;
+  geo={pStart:gv.pStart,ndays:gv.ndays,bodyTop:HEADH,bodyH};
+  const head=`<svg class="ghead" width="${W}" height="${HEADH}" viewBox="0 0 ${W} ${HEADH}">${svgHeader(gv,bodyH)}</svg>`;
+  const body=`<svg id="gsvg" class="gbody" width="${W}" height="${bH}" viewBox="0 0 ${W} ${bH}">${svgBody(d,gv,bodyH)}</svg>`;
   wrap.innerHTML=resolveVars(`<div class="gwrap" style="width:${W}px">${head}${body}</div>`);
   attachDrag();
 }
@@ -508,11 +527,11 @@ function svgBody(d,cv,bodyH){
     s+=`<line x1="${PADL}" y1="${yPct(g)}" x2="${PADL+cv.ndays*DX}" y2="${yPct(g)}" stroke="#eee" stroke-dasharray="2 3"/>`;
     s+=`<text x="${PADL+cv.ndays*DX+4}" y="${yPct(g)+3}" font-size="9" fill="var(--muted)">${g}%</text>`;
   }
-  let pts=[[xOf(0),yPct(0)]];
+  let pts=[[xOf(cv.lead),yPct(0)]];
   cv.weeks.forEach(w=>pts.push([xOf(w.endIdx+1), yPct(w.cum)]));
   s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--planned)" stroke-width="2"/>`;
   pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.4" fill="var(--planned)"/>`);
-  let apts=[[xOf(0),yPct(0)]]; let hasA=false;
+  let apts=[[xOf(cv.lead),yPct(0)]]; let hasA=false;
   cv.weeks.forEach(w=>{ const a=state.actual[weekKey(w.monday)]; if(a!=null&&a!==''){ apts.push([xOf(w.endIdx+1),yPct(Number(a))]); hasA=true; } });
   if(hasA){
     s+=`<polyline points="${apts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--actual)" stroke-width="2"/>`;
@@ -653,7 +672,9 @@ function buildPrintSVG(){
   const tableW=cols.reduce((a,c)=>a+c.w,0);
   const PDX=(state.zoom && state.zoom!=='day') ? (ZOOM[state.zoom]||ZOOM.day).dx
             : Math.max(12, Math.min(16, Math.floor(1600/cv.ndays)));
-  const ganttW=cv.ndays*PDX;
+  LEADPAD=padDaysFor(PDX);
+  const gvp=padView(cv, LEADPAD, LEADPAD);   // 列印版同樣前後補留白
+  const ganttW=gvp.ndays*PDX;
   const bodyTop=HEADH;
   const totalW=tableW+8+ganttW+PADR;
   const _footShown = !state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
@@ -703,7 +724,7 @@ function buildPrintSVG(){
     s+=`<text x="${tableW-6}" y="${fyT+19+li*30}" text-anchor="end" font-size="11" font-weight="600" fill="${col}">${lb}</text>`;
   });
   // 甘特區(平移到表格右邊)
-  s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,cv,PDX,bodyH,rowH)}</g>`;
+  s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowH)}</g>`;
   const title=esc(state.title);
   return resolveVars(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH+26}" preserveAspectRatio="xMidYMin meet">
     <style>text{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif}</style>
@@ -738,10 +759,10 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
   const yPct=p=>bodyTop+bodyH*(1-p/100);
   for(let g=0;g<=100;g+=20){ s+=`<line x1="${PADL}" y1="${yPct(g)}" x2="${PADL+cv.ndays*DXP}" y2="${yPct(g)}" stroke="#eee" stroke-dasharray="2 3"/>`;
     s+=`<text x="${PADL+cv.ndays*DXP+4}" y="${yPct(g)+3}" font-size="8" fill="var(--muted)">${g}%</text>`; }
-  let pts=[[xO(0),yPct(0)]]; cv.weeks.forEach(w=>pts.push([xO(w.endIdx+1),yPct(w.cum)]));
+  let pts=[[xO(cv.lead),yPct(0)]]; cv.weeks.forEach(w=>pts.push([xO(w.endIdx+1),yPct(w.cum)]));
   s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--planned)" stroke-width="1.8"/>`;
   pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2" fill="var(--planned)"/>`);
-  let apts=[[xO(0),yPct(0)]],hasA=false;
+  let apts=[[xO(cv.lead),yPct(0)]],hasA=false;
   cv.weeks.forEach(w=>{const a=state.actual[weekKey(w.monday)];if(a!=null&&a!==''){apts.push([xO(w.endIdx+1),yPct(Number(a))]);hasA=true;}});
   if(hasA){ s+=`<polyline points="${apts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--actual)" stroke-width="1.8"/>`;
     apts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2" fill="var(--actual)"/>`); }
