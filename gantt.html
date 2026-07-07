@@ -770,10 +770,11 @@ function buildPrintSVG(){
   // 甘特區(平移到表格右邊)
   s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowH)}</g>`;
   const title=esc(state.title);
-  return resolveVars(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH+26}" preserveAspectRatio="xMidYMin meet">
+  const titleGap=36;   // 標題與下方進度表的間距(原 26,多留約 0.5 行)
+  return resolveVars(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH+titleGap}" preserveAspectRatio="xMidYMin meet">
     <style>text{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif}</style>
     <text x="${totalW/2}" y="18" text-anchor="middle" font-size="15" font-weight="700">${title}</text>
-    <g transform="translate(0,26)">${s}</g></svg>`);
+    <g transform="translate(0,${titleGap})">${s}</g></svg>`);
 }
 // 甘特內容(列印版,DX 參數化;與畫面版同邏輯,去互動)
 function svgGutsP(d,cv,DXP,bodyH,rowH){
