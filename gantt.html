@@ -487,9 +487,7 @@ function svgHeader(cv,bodyH){
 /* 甘特主體(長條+S曲線+每週%),y 從 0 起算(已扣掉 HEADH) */
 function svgBody(d,cv,bodyH){
   let s='';
-  // #23 今日以前底色(最底層)
-  const _ti=todayIdx(cv); const pastEnd=Math.max(0,Math.min(_ti,cv.ndays));
-  if(pastEnd>0) s+=`<rect x="${PADL}" y="0" width="${pastEnd*DX}" height="${bodyH}" fill="#f0efe9"/>`;
+  const _ti=todayIdx(cv);   // 供今日線定位使用(不再畫過去/未來底色區分)
   // 週末底色(僅日/週檢視)
   if(state.zoom==='day'||state.zoom==='week'||!state.zoom){
     for(let i=0;i<cv.ndays;i++){ const wd=addDays(cv.pStart,i).getDay();
@@ -737,8 +735,7 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
   // 與畫面版同邏輯,但日寬 DXP 參數化、去除互動
   const bodyTop=HEADH; let s='';
   const xO=i=>PADL+i*DXP;
-  const pti=todayIdx(cv); const pPast=Math.max(0,Math.min(pti,cv.ndays));
-  if(pPast>0) s+=`<rect x="${PADL}" y="${bodyTop}" width="${pPast*DXP}" height="${bodyH}" fill="#f0efe9"/>`;
+  const pti=todayIdx(cv);   // 供今日線定位使用(不再畫過去/未來底色區分)
   if(state.zoom==='day'||state.zoom==='week'||!state.zoom){
     for(let i=0;i<cv.ndays;i++){ const day=addDays(cv.pStart,i),wd=day.getDay();
       if(wd===0||wd===6) s+=`<rect x="${xO(i)}" y="${bodyTop}" width="${DXP}" height="${bodyH}" fill="var(--weekend)"/>`; }
