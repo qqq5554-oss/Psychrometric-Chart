@@ -488,8 +488,17 @@ function buildTimeHeader(cv, dx, scale){
   if(z==='day'){
     band(mo,0,18,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,Z(12),'font-weight="700"');
     s+=weekBands(cv, xo, 18, 16, Z(10));
-    for(let i=0;i<cv.ndays;i++){ const day=addDays(cv.pStart,i);
-      s+=`<text x="${xo(i)+dx/2}" y="46" text-anchor="middle" font-size="${Z(9)}" fill="${[0,6].includes(day.getDay())?'#c0392b':'#888'}">${day.getDate()}</text>`; }
+    if(dx>=13){
+      // 每日夠寬:逐日標數字
+      for(let i=0;i<cv.ndays;i++){ const day=addDays(cv.pStart,i);
+        s+=`<text x="${xo(i)+dx/2}" y="46" text-anchor="middle" font-size="${Z(9)}" fill="${[0,6].includes(day.getDay())?'#c0392b':'#888'}">${day.getDate()}</text>`; }
+    } else {
+      // 每日太窄(如 A3 匯出把百餘天壓進一頁):改標各週日期範圍(例:13~19),避免數字擠成一團
+      cv.weeks.forEach(w=>{
+        const x0=xo(w.mondayIdx), x1=xo(Math.min(w.endIdx+1,cv.ndays)); const xc=(x0+x1)/2;
+        s+=`<text x="${xc}" y="46" text-anchor="middle" font-size="${Z(9)}" fill="#888">${w.monday.getDate()}~${w.endDay.getDate()}</text>`;
+      });
+    }
   } else if(z==='week'){
     band(mo,0,26,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,Z(12),'font-weight="700"');
     s+=weekBands(cv, xo, 26, 28, Z(10));
