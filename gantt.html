@@ -475,8 +475,9 @@ function weekBands(cv, xo, y0, h, fs){
   });
   return s;
 }
-// 共用表頭(依 state.zoom 決定刻度),xo=每日像素寬
-function buildTimeHeader(cv, dx){
+// 共用表頭(依 state.zoom 決定刻度),xo=每日像素寬;scale=字級倍率(畫面用文字大小滑桿,列印固定 1)
+function buildTimeHeader(cv, dx, scale){
+  const Z=n=>Math.round(n*(scale||1)*10)/10;
   const z=state.zoom||'day'; const xo=i=>PADL+i*dx; let s='';
   const band=(sp,y0,h,fmt,fs,extra)=>{ sp.forEach((p,idx)=>{ const x0=xo(p.i0),x1=xo(p.i1);
     s+=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${h}" fill="${idx%2?'#fff':'#f7f6f0'}" stroke="var(--line2)"/>`;
@@ -485,21 +486,21 @@ function buildTimeHeader(cv, dx){
   const mo=timeSpans(cv,d=>d.getFullYear()*12+d.getMonth());
   const qt=timeSpans(cv,d=>d.getFullYear()*4+Math.floor(d.getMonth()/3));
   if(z==='day'){
-    band(mo,0,18,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,fz(12),'font-weight="700"');
-    s+=weekBands(cv, xo, 18, 16, fz(10));
+    band(mo,0,18,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,Z(12),'font-weight="700"');
+    s+=weekBands(cv, xo, 18, 16, Z(10));
     for(let i=0;i<cv.ndays;i++){ const day=addDays(cv.pStart,i);
-      s+=`<text x="${xo(i)+dx/2}" y="46" text-anchor="middle" font-size="${fz(9)}" fill="${[0,6].includes(day.getDay())?'#c0392b':'#888'}">${day.getDate()}</text>`; }
+      s+=`<text x="${xo(i)+dx/2}" y="46" text-anchor="middle" font-size="${Z(9)}" fill="${[0,6].includes(day.getDay())?'#c0392b':'#888'}">${day.getDate()}</text>`; }
   } else if(z==='week'){
-    band(mo,0,26,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,fz(12),'font-weight="700"');
-    s+=weekBands(cv, xo, 26, 28, fz(10));
+    band(mo,0,26,p=>`${p.date.getFullYear()}/${p.date.getMonth()+1}`,Z(12),'font-weight="700"');
+    s+=weekBands(cv, xo, 26, 28, Z(10));
   } else if(z==='month'){
-    band(yr,0,22,p=>`${p.date.getFullYear()}`,fz(13),'font-weight="700"');
-    band(mo,22,32,p=>`${p.date.getMonth()+1}月`,fz(11),'fill="var(--muted)"');
+    band(yr,0,22,p=>`${p.date.getFullYear()}`,Z(13),'font-weight="700"');
+    band(mo,22,32,p=>`${p.date.getMonth()+1}月`,Z(11),'fill="var(--muted)"');
   } else if(z==='quarter'){
-    band(yr,0,26,p=>`${p.date.getFullYear()}`,fz(13),'font-weight="700"');
-    band(qt,26,28,p=>`Q${Math.floor(p.date.getMonth()/3)+1}`,fz(12),'fill="var(--muted)"');
+    band(yr,0,26,p=>`${p.date.getFullYear()}`,Z(13),'font-weight="700"');
+    band(qt,26,28,p=>`Q${Math.floor(p.date.getMonth()/3)+1}`,Z(12),'fill="var(--muted)"');
   } else if(z==='year'){
-    band(yr,0,HEADH,p=>`${p.date.getFullYear()}`,fz(15),'font-weight="700"');
+    band(yr,0,HEADH,p=>`${p.date.getFullYear()}`,Z(15),'font-weight="700"');
   }
   s+=`<line x1="${PADL}" y1="${HEADH-0.5}" x2="${PADL+cv.ndays*dx}" y2="${HEADH-0.5}" stroke="var(--ink)"/>`;
   return s;
@@ -560,7 +561,7 @@ function todayIdx(cv){ const t=new Date(); t.setHours(0,0,0,0); return Math.roun
 
 /* 甘特表頭(月/週/日),高度 HEADH */
 function svgHeader(cv,bodyH){
-  let s=buildTimeHeader(cv, DX);
+  let s=buildTimeHeader(cv, DX, fontScale());
   // 今日線(表頭)
   const ti=todayIdx(cv);
   if(!state.hideToday && ti>=0&&ti<=cv.ndays){ const tx=xOf(ti);
@@ -763,30 +764,26 @@ function buildPrintSVG(){
   if(state.hideAmount) cols=cols.filter(c=>c.k!=='amount');
   if(state.hideWeight) cols=cols.filter(c=>c.k!=='weight');
   const tableW=cols.reduce((a,c)=>a+c.w,0);
-  const PDX=(state.zoom && state.zoom!=='day') ? (ZOOM[state.zoom]||ZOOM.day).dx
-            : Math.max(12, Math.min(16, Math.floor(1600/cv.ndays)));
-  LEADPAD=padDaysFor(PDX);
-  const gvp=padView(cv, LEADPAD, LEADPAD);   // 列印版同樣前後補留白
-  let ganttRight=PADL+gvp.ndays*PDX;   // 甘特內容右緣(群組座標);有長條標籤時往右延伸
-  vis.forEach(it=>{
-    const parent=isParentCode(it.code);
-    if(parent && !it.collapsed) return;
-    const en=parent?it._endShown:it.end; if(!en) return;
-    const lbl=barLabel(it); if(!lbl) return;
-    const i1=Math.round((parseD(en)-gvp.pStart)/86400000);
-    ganttRight=Math.max(ganttRight, PADL+(i1+1)*PDX+5+estTextW(lbl,fz(9))+10);
-  });
+  // === A3 橫式實際點數畫布(8mm 邊界後約 1123×794,比例 ~1.414):讓匯出 SVG 近 1:1,文字不再被整張縮小 ===
+  const PAGE_W=1123, PAGE_H=794, titleH=36;
   const bodyTop=HEADH;
-  const totalW=tableW+8+ganttRight+PADR;
   const _footShown = !state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
-  const fixedH=bodyTop+(_footShown?FOOTH:12)+24;   // 表頭+footer+標題
-  // 自動填滿頁面:列數少時加高列高,讓整張接近 A3 比例
-  let rowH=ROWH; const targetBody=(totalW/1.414)-fixedH;
-  if(rows>0 && targetBody/rows>ROWH) rowH=Math.min(46, targetBody/rows);
+  const footH=_footShown?FOOTH:12;
+  // 反推每日寬:左表+甘特填滿頁寬(不再用固定 14~16px 造成整張過寬被縮小);長/多工項時請切到 週/月 刻度
+  const availGantt=Math.max(80, PAGE_W - tableW - 8 - PADL - PADR);
+  LEADPAD=padDaysFor(availGantt/Math.max(1,cv.ndays));
+  const gvp=padView(cv, LEADPAD, LEADPAD);   // 列印版同樣前後補留白
+  const PDX=availGantt/gvp.ndays;            // 含留白的總天數恰好填滿 availGantt
+  const ganttRight=PADL+gvp.ndays*PDX;
+  const totalW=tableW+8+ganttRight+PADR;     // ≈ PAGE_W
+  // 反推列高:內容填滿頁高
+  const availBody=PAGE_H - titleH - bodyTop - footH;
+  let rowH = rows>0 ? availBody/rows : ROWH;
+  rowH = Math.max(14, Math.min(rowH, 48));
   const bodyH=rows*rowH;
-  const totalH=bodyTop+bodyH+(_footShown?FOOTH:12)+24;
-  // 左表(SVG)
-  let s=`<g font-size="${fz(10)}">`;
+  const totalH=titleH+bodyTop+bodyH+footH;   // 整張高(≈ PAGE_H)
+  // 左表(SVG,固定字級,不隨畫面「文字大小」滑桿縮放)
+  let s=`<g font-size="10">`;
   let cx=0;
   s+=`<rect x="0" y="0" width="${tableW}" height="${bodyTop}" fill="#f1efe8" stroke="var(--line)"/>`;
   cols.forEach(c=>{ s+=`<text x="${cx+c.w/2}" y="${bodyTop/2+4}" text-anchor="middle" font-weight="700">${c.label}</text>`;
@@ -806,13 +803,13 @@ function buildPrintSVG(){
       const fill=parent&&c.k==='name'?'#2f3e4d':'#1d1d1a';
       if(c.k==='name'){
         // 統一字級 9.5×倍率，過長自動換兩行（不再逐列縮小）
-        const NFS=fz(9.5), lines=wrapText(v, NFS, c.w-8, 2), lh=fz(11);
+        const NFS=10, lines=wrapText(v, NFS, c.w-8, 2), lh=12;
         const y0=y+rowH/2 - (lines.length-1)*lh/2 + 3.5;
         lines.forEach((ln,li)=>{
           s+=`<text x="${tx}" y="${y0+li*lh}" text-anchor="start" font-size="${NFS}" font-weight="${parent?700:400}" fill="${fill}">${esc(ln)}</text>`;
         });
       } else {
-        s+=`<text x="${tx}" y="${y+rowH/2+3.5}" text-anchor="${c.align}" font-size="${fz(10)}" font-weight="${parent?700:400}" fill="${fill}">${esc(v)}</text>`;
+        s+=`<text x="${tx}" y="${y+rowH/2+3.5}" text-anchor="${c.align}" font-size="9.5" font-weight="${parent?700:400}" fill="${fill}">${esc(v)}</text>`;
       }
       xx+=c.w;
     });
@@ -822,16 +819,15 @@ function buildPrintSVG(){
   const fyT=HEADH+bodyH;
   if(!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom)) ['每週預定%','累計預定%','累計實際%'].forEach((lb,li)=>{
     const col=li===1?'var(--planned)':(li===2?'var(--actual)':'var(--ink)');
-    s+=`<text x="${tableW-6}" y="${fyT+19+li*30}" text-anchor="end" font-size="${fz(11)}" font-weight="600" fill="${col}">${lb}</text>`;
+    s+=`<text x="${tableW-6}" y="${fyT+19+li*30}" text-anchor="end" font-size="11" font-weight="600" fill="${col}">${lb}</text>`;
   });
   // 甘特區(平移到表格右邊)
   s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowH)}</g>`;
   const title=esc(state.title);
-  const titleGap=36;   // 標題與下方進度表的間距(原 26,多留約 0.5 行)
-  return resolveVars(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH+titleGap}" preserveAspectRatio="xMidYMin meet">
+  return resolveVars(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMidYMin meet">
     <style>text{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif}</style>
-    <text x="${totalW/2}" y="18" text-anchor="middle" font-size="15" font-weight="700">${title}</text>
-    <g transform="translate(0,${titleGap})">${s}</g></svg>`);
+    <text x="${totalW/2}" y="24" text-anchor="middle" font-size="16" font-weight="700">${title}</text>
+    <g transform="translate(0,${titleH})">${s}</g></svg>`);
 }
 // 甘特內容(列印版,DX 參數化;與畫面版同邏輯,去互動)
 function svgGutsP(d,cv,DXP,bodyH,rowH){
@@ -844,7 +840,7 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
     for(let i=0;i<cv.ndays;i++){ const day=addDays(cv.pStart,i),wd=day.getDay();
       if(wd===0||wd===6) s+=`<rect x="${xO(i)}" y="${bodyTop}" width="${DXP}" height="${bodyH}" fill="var(--weekend)"/>`; }
   }
-  s+=buildTimeHeader(cv, DXP);
+  s+=buildTimeHeader(cv, DXP, 1);   // 列印固定字級(不隨畫面文字大小滑桿)
   s+=buildGridlines(cv, DXP, bodyTop, bodyH);
   visibleItems().forEach((it,ri)=>{ const y=bodyTop+ri*rowH;
     s+=`<line x1="${PADL}" y1="${y+rowH}" x2="${PADL+cv.ndays*DXP}" y2="${y+rowH}" stroke="var(--line2)"/>`;
@@ -858,14 +854,14 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
         const fill=parent?'var(--bar-parent)':(parseInt(parentOf(it.code))%2?'var(--bar-child)':'var(--bar-child2)');
         s+=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(3,bh/2)}" fill="${fill}" stroke="${parent?'#26333f':'#3a5670'}"/>`;
         const lbl=barLabel(it);
-        if(lbl){ const lw=estTextW(lbl,fz(9));
-          s+=`<rect x="${bx+bw+3}" y="${yc-fz(6.5)}" width="${lw+4}" height="${fz(13)}" fill="#ffffff" opacity="0.72"/>`;
-          s+=`<text x="${bx+bw+5}" y="${yc+3.5}" font-size="${fz(9)}" fill="var(--muted)" font-weight="${parent?600:400}">${esc(lbl)}</text>`; } } }
+        if(lbl){ const lw=estTextW(lbl,9);
+          s+=`<rect x="${bx+bw+3}" y="${yc-6.5}" width="${lw+4}" height="13" fill="#ffffff" opacity="0.72"/>`;
+          s+=`<text x="${bx+bw+5}" y="${yc+3.5}" font-size="9" fill="var(--muted)" font-weight="${parent?600:400}">${esc(lbl)}</text>`; } } }
   });
   if(!state.hideProgress){
   const yPct=p=>bodyTop+bodyH*(1-p/100);
   for(let g=0;g<=100;g+=20){ s+=`<line x1="${PADL}" y1="${yPct(g)}" x2="${PADL+cv.ndays*DXP}" y2="${yPct(g)}" stroke="#eee" stroke-dasharray="2 3"/>`;
-    s+=`<text x="${PADL+cv.ndays*DXP+4}" y="${yPct(g)+3}" font-size="${fz(8)}" fill="var(--muted)">${g}%</text>`; }
+    s+=`<text x="${PADL+cv.ndays*DXP+4}" y="${yPct(g)+3}" font-size="8" fill="var(--muted)">${g}%</text>`; }
   let pts=[[xO(cv.lead),yPct(0)]]; cv.weeks.forEach(w=>pts.push([xO(w.endIdx+1),yPct(w.cum)]));
   s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--planned)" stroke-width="1.8"/>`;
   pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2" fill="var(--planned)"/>`);
@@ -876,16 +872,16 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
   }
   if(!state.hideToday && pti>=0&&pti<=cv.ndays){ const tx=xO(pti);
     s+=`<line x1="${tx}" y1="${bodyTop}" x2="${tx}" y2="${bodyTop+bodyH}" stroke="#e8590c" stroke-width="1.2" stroke-dasharray="4 3"/>`;
-    s+=`<text x="${tx}" y="${bodyTop-2}" text-anchor="middle" font-size="${fz(8)}" fill="#e8590c" font-weight="700">今日</text>`; }
+    s+=`<text x="${tx}" y="${bodyTop-2}" text-anchor="middle" font-size="8" fill="#e8590c" font-weight="700">今日</text>`; }
   if(!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom)){
   const fy=bodyTop+bodyH; const G=30, BH=G*3;
   s+=`<rect x="${PADL}" y="${fy}" width="${cv.ndays*DXP}" height="${BH}" fill="none" stroke="var(--line)"/>`;
   for(let li=1;li<3;li++) s+=`<line x1="${PADL}" y1="${fy+li*G}" x2="${PADL+cv.ndays*DXP}" y2="${fy+li*G}" stroke="var(--line2)"/>`;
   cv.weeks.forEach((w,wi)=>{ const x0=xO(w.mondayIdx),x1=xO(Math.min(w.endIdx+1,cv.ndays)),xc=(x0+x1)/2;
-    s+=`<text x="${xc}" y="${fy+19}" text-anchor="middle" font-size="${fz(11)}">${w.inc.toFixed(1)}</text>`;
-    s+=`<text x="${xc}" y="${fy+19+G}" text-anchor="middle" font-size="${fz(11)}" fill="var(--planned)">${w.cum.toFixed(1)}</text>`;
+    s+=`<text x="${xc}" y="${fy+19}" text-anchor="middle" font-size="11">${w.inc.toFixed(1)}</text>`;
+    s+=`<text x="${xc}" y="${fy+19+G}" text-anchor="middle" font-size="11" fill="var(--planned)">${w.cum.toFixed(1)}</text>`;
     const a=state.actual[weekKey(w.monday)];
-    s+=`<text x="${xc}" y="${fy+19+G*2}" text-anchor="middle" font-size="${fz(11)}" fill="var(--actual)">${(a!=null&&a!=='')?Number(a).toFixed(1):'—'}</text>`;
+    s+=`<text x="${xc}" y="${fy+19+G*2}" text-anchor="middle" font-size="11" fill="var(--actual)">${(a!=null&&a!=='')?Number(a).toFixed(1):'—'}</text>`;
     if(wi>0) s+=`<line x1="${x0}" y1="${fy}" x2="${x0}" y2="${fy+BH}" stroke="var(--line2)"/>`; });
   }
   return s;
