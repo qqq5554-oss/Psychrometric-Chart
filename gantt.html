@@ -143,6 +143,7 @@ svg{display:block;font-family:inherit}
           <div class="sw-row"><span>長條後顯示工項名稱與日期</span><input type="checkbox" class="sw" id="swBarLabel"></div>
           <div class="sw-row"><span>長條粗細</span><span><input type="range" class="rng" id="barThickRange" min="6" max="22" step="1"> <span class="val" id="barThickVal"></span></span></div>
           <div class="sw-row"><span>文字大小</span><span><input type="range" class="rng" id="fontScaleRange" min="0.8" max="1.5" step="0.05"> <span class="val" id="fontScaleVal"></span></span></div>
+          <div class="sw-row"><span>匯出寬度（A3 拉頁）</span><span><input type="range" class="rng" id="exportWidthRange" min="1" max="3" step="0.25"> <span class="val" id="exportWidthVal"></span></span></div>
         </div>
       </div>
       <label style="font-size:13px;color:var(--muted)">刻度
@@ -776,8 +777,9 @@ function buildPrintSVG(){
   if(state.hideAmount) cols=cols.filter(c=>c.k!=='amount');
   if(state.hideWeight) cols=cols.filter(c=>c.k!=='weight');
   const tableW=cols.reduce((a,c)=>a+c.w,0);
-  // === A3 橫式實際點數畫布(8mm 邊界後約 1123×794,比例 ~1.414):讓匯出 SVG 近 1:1,文字不再被整張縮小 ===
-  const PAGE_W=1123, PAGE_H=794, titleH=36;
+  // === A3 橫式實際點數畫布(8mm 邊界後約 1123×794);寬度可乘倍率以配合 A3 拉頁(2/3 折) ===
+  const widthMul=Math.max(1, Math.min(Number(state.exportWidthMul)||1, 3));
+  const PAGE_W=Math.round(1123*widthMul), PAGE_H=794, titleH=36;
   const bodyTop=HEADH;
   const _footShown = !state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
   const footH=_footShown?FOOTH:12;
@@ -1078,6 +1080,9 @@ function renderAll(){
   document.getElementById('fontScaleRange').value=fontScale();
   document.getElementById('fontScaleVal').textContent=Math.round(fontScale()*100)+'%';
   document.documentElement.style.setProperty('--fs', fontScale());
+  { const m=Math.max(1,Math.min(Number(state.exportWidthMul)||1,3));
+    document.getElementById('exportWidthRange').value=m;
+    document.getElementById('exportWidthVal').textContent='×'+m; }
   document.getElementById('zoomSel').value=state.zoom||'day';
   renderTable(); measureRows(); renderChart(); saveAutosave();
 }
@@ -1115,6 +1120,11 @@ document.getElementById('fontScaleRange').addEventListener('input',e=>{
   document.getElementById('fontScaleVal').textContent=Math.round(fontScale()*100)+'%';
   document.documentElement.style.setProperty('--fs', fontScale());
   measureRows(); renderChart(); saveAutosave();   // 表格字級改變→列高變→甘特重新量測對齊
+});
+document.getElementById('exportWidthRange').addEventListener('input',e=>{
+  state.exportWidthMul=Number(e.target.value);
+  document.getElementById('exportWidthVal').textContent='×'+state.exportWidthMul;
+  saveAutosave();   // 只影響 A3 匯出,不需重畫畫面
 });
 document.getElementById('zoomSel').addEventListener('change',e=>{ state.zoom=e.target.value; renderAll(); });
 /* 分隔棒:左右拖曳調整表格/圖表比例 */
