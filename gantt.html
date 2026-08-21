@@ -494,9 +494,12 @@ function buildTimeHeader(cv, dx, scale){
         s+=`<text x="${xo(i)+dx/2}" y="46" text-anchor="middle" font-size="${Z(9)}" fill="${[0,6].includes(day.getDay())?'#c0392b':'#888'}">${day.getDate()}</text>`; }
     } else {
       // 每日太窄(如 A3 匯出把百餘天壓進一頁):改標各週日期範圍(例:13~19),避免數字擠成一團
+      // 窄欄(如頭尾部分週)放不下整段範圍時退成只標起日,再放不下則略過,避免相鄰週標籤重疊
       cv.weeks.forEach(w=>{
-        const x0=xo(w.mondayIdx), x1=xo(Math.min(w.endIdx+1,cv.ndays)); const xc=(x0+x1)/2;
-        s+=`<text x="${xc}" y="46" text-anchor="middle" font-size="${Z(9)}" fill="#888">${w.monday.getDate()}~${w.endDay.getDate()}</text>`;
+        const x0=xo(w.mondayIdx), x1=xo(Math.min(w.endIdx+1,cv.ndays)); const xc=(x0+x1)/2, colW=x1-x0;
+        const range=`${w.monday.getDate()}~${w.endDay.getDate()}`, startOnly=`${w.monday.getDate()}`;
+        const txt = estTextW(range,Z(9))<=colW-1 ? range : (estTextW(startOnly,Z(9))<=colW-1 ? startOnly : '');
+        if(txt) s+=`<text x="${xc}" y="46" text-anchor="middle" font-size="${Z(9)}" fill="#888">${txt}</text>`;
       });
     }
   } else if(z==='week'){
@@ -811,14 +814,18 @@ function buildPrintSVG(){
       const tx=c.align==='start'?xx+4:(c.align==='end'?xx+c.w-4:xx+c.w/2);
       const fill=parent&&c.k==='name'?'#2f3e4d':'#1d1d1a';
       if(c.k==='name'){
-        // 統一字級 9.5×倍率，過長自動換兩行（不再逐列縮小）
-        const NFS=10, lines=wrapText(v, NFS, c.w-8, 2), lh=12;
-        const y0=y+rowH/2 - (lines.length-1)*lh/2 + 3.5;
+        // 依列高決定行數與字級:列夠高→最多兩行;列太矮→一行(過長截斷加…),避免兩行溢出與上下列重疊
+        const maxLines = rowH>=26 ? 2 : 1;
+        const NFS = Math.max(7, Math.min(10, (rowH-3)/maxLines/1.18));
+        const lh = NFS*1.18;
+        const lines = wrapText(v, NFS, c.w-8, maxLines);
+        const y0 = y+rowH/2 - (lines.length-1)*lh/2 + NFS*0.34;
         lines.forEach((ln,li)=>{
           s+=`<text x="${tx}" y="${y0+li*lh}" text-anchor="start" font-size="${NFS}" font-weight="${parent?700:400}" fill="${fill}">${esc(ln)}</text>`;
         });
       } else {
-        s+=`<text x="${tx}" y="${y+rowH/2+3.5}" text-anchor="${c.align}" font-size="9.5" font-weight="${parent?700:400}" fill="${fill}">${esc(v)}</text>`;
+        const cellFS=Math.max(7,Math.min(9.5,(rowH-3)/1.18));
+        s+=`<text x="${tx}" y="${y+rowH/2+cellFS*0.34}" text-anchor="${c.align}" font-size="${cellFS}" font-weight="${parent?700:400}" fill="${fill}">${esc(v)}</text>`;
       }
       xx+=c.w;
     });
