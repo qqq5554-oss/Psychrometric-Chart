@@ -790,12 +790,20 @@ function buildPrintSVG(){
   const PDX=availGantt/gvp.ndays;            // 含留白的總天數恰好填滿 availGantt
   const ganttRight=PADL+gvp.ndays*PDX;
   const totalW=tableW+8+ganttRight+PADR;     // ≈ PAGE_W
-  // 反推列高:內容填滿頁高
+  // 每列高度:依名稱完整換行所需行數決定(不截斷);放得下時平均加高撐滿頁高,放不下則整體變高(列/框變大)
   const availBody=PAGE_H - titleH - bodyTop - footH;
-  let rowH = rows>0 ? availBody/rows : ROWH;
-  rowH = Math.max(14, Math.min(rowH, 48));
-  const bodyH=rows*rowH;
-  const totalH=titleH+bodyTop+bodyH+footH;   // 整張高(≈ PAGE_H)
+  const NAMEFS=10, NAMELH=12, VPAD=8;
+  const nameColW=((cols.find(c=>c.k==='name'))||{w:236}).w - 8;
+  const minHs = vis.map(it=>{
+    const ln = Math.max(1, wrapText(String(it.name), NAMEFS, nameColW, 99).length);
+    return Math.max(14, ln*NAMELH + VPAD);
+  });
+  const sumMin = minHs.reduce((a,b)=>a+b,0);
+  const per = rows>0 ? Math.max(0, availBody - sumMin)/rows : 0;   // 有餘裕→平均撐滿;不足→0(整體變高)
+  const rowHs = minHs.map(h=> h + per);
+  const rowTops=[]; let _acc=0; rowHs.forEach(h=>{ rowTops.push(_acc); _acc+=h; });
+  const bodyH=_acc;
+  const totalH=titleH+bodyTop+bodyH+footH;
   // 左表(SVG,固定字級,不隨畫面「文字大小」滑桿縮放)
   let s=`<g font-size="10">`;
   let cx=0;
@@ -804,7 +812,7 @@ function buildPrintSVG(){
     s+=`<line x1="${cx}" y1="0" x2="${cx}" y2="${bodyTop+bodyH}" stroke="var(--line2)"/>`; cx+=c.w; });
   s+=`<line x1="${tableW}" y1="0" x2="${tableW}" y2="${bodyTop+bodyH}" stroke="var(--line)"/>`;
   vis.forEach((it,ri)=>{
-    const y=bodyTop+ri*rowH; const parent=isParentCode(it.code);
+    const y=bodyTop+rowTops[ri], rowH=rowHs[ri]; const parent=isParentCode(it.code);
     if(parent) s+=`<rect x="0" y="${y}" width="${tableW}" height="${rowH}" fill="#eef1f3"/>`;
     s+=`<line x1="0" y1="${y+rowH}" x2="${tableW}" y2="${y+rowH}" stroke="var(--line2)"/>`;
     const st=parent?it._startShown:it.start, en=parent?it._endShown:it.end;
@@ -816,18 +824,14 @@ function buildPrintSVG(){
       const tx=c.align==='start'?xx+4:(c.align==='end'?xx+c.w-4:xx+c.w/2);
       const fill=parent&&c.k==='name'?'#2f3e4d':'#1d1d1a';
       if(c.k==='name'){
-        // 依列高決定行數與字級:列夠高→最多兩行;列太矮→一行(過長截斷加…),避免兩行溢出與上下列重疊
-        const maxLines = rowH>=26 ? 2 : 1;
-        const NFS = Math.max(7, Math.min(10, (rowH-3)/maxLines/1.18));
-        const lh = NFS*1.18;
-        const lines = wrapText(v, NFS, c.w-8, maxLines);
-        const y0 = y+rowH/2 - (lines.length-1)*lh/2 + NFS*0.34;
+        // 完整換行,不截斷(列高已依行數加高,故不會溢出/重疊)
+        const lines = wrapText(v, NAMEFS, c.w-8, 99);
+        const y0 = y+rowH/2 - (lines.length-1)*NAMELH/2 + NAMEFS*0.34;
         lines.forEach((ln,li)=>{
-          s+=`<text x="${tx}" y="${y0+li*lh}" text-anchor="start" font-size="${NFS}" font-weight="${parent?700:400}" fill="${fill}">${esc(ln)}</text>`;
+          s+=`<text x="${tx}" y="${y0+li*NAMELH}" text-anchor="start" font-size="${NAMEFS}" font-weight="${parent?700:400}" fill="${fill}">${esc(ln)}</text>`;
         });
       } else {
-        const cellFS=Math.max(7,Math.min(9.5,(rowH-3)/1.18));
-        s+=`<text x="${tx}" y="${y+rowH/2+cellFS*0.34}" text-anchor="${c.align}" font-size="${cellFS}" font-weight="${parent?700:400}" fill="${fill}">${esc(v)}</text>`;
+        s+=`<text x="${tx}" y="${y+rowH/2+3.2}" text-anchor="${c.align}" font-size="9.5" font-weight="${parent?700:400}" fill="${fill}">${esc(v)}</text>`;
       }
       xx+=c.w;
     });
@@ -840,7 +844,7 @@ function buildPrintSVG(){
     s+=`<text x="${tableW-6}" y="${fyT+19+li*30}" text-anchor="end" font-size="11" font-weight="600" fill="${col}">${lb}</text>`;
   });
   // 甘特區(平移到表格右邊)
-  s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowH)}</g>`;
+  s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowTops,rowHs)}</g>`;
   const title=esc(state.title);
   return resolveVars(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMidYMin meet">
     <style>text{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif}</style>
@@ -848,9 +852,8 @@ function buildPrintSVG(){
     <g transform="translate(0,${titleH})">${s}</g></svg>`);
 }
 // 甘特內容(列印版,DX 參數化;與畫面版同邏輯,去互動)
-function svgGutsP(d,cv,DXP,bodyH,rowH){
-  rowH=rowH||ROWH;
-  // 與畫面版同邏輯,但日寬 DXP 參數化、去除互動
+function svgGutsP(d,cv,DXP,bodyH,rowTops,rowHs){
+  // 與畫面版同邏輯,但日寬 DXP 參數化、去除互動;逐列高度(rowHs)與左表一致
   const bodyTop=HEADH; let s='';
   const xO=i=>PADL+i*DXP;
   const pti=todayIdx(cv);   // 供今日線定位使用(不再畫過去/未來底色區分)
@@ -860,7 +863,7 @@ function svgGutsP(d,cv,DXP,bodyH,rowH){
   }
   s+=buildTimeHeader(cv, DXP, 1);   // 列印固定字級(不隨畫面文字大小滑桿)
   s+=buildGridlines(cv, DXP, bodyTop, bodyH);
-  visibleItems().forEach((it,ri)=>{ const y=bodyTop+ri*rowH;
+  visibleItems().forEach((it,ri)=>{ const y=bodyTop+rowTops[ri], rowH=rowHs[ri];
     s+=`<line x1="${PADL}" y1="${y+rowH}" x2="${PADL+cv.ndays*DXP}" y2="${y+rowH}" stroke="var(--line2)"/>`;
     const parent=isParentCode(it.code); const st=parent?it._startShown:it.start,en=parent?it._endShown:it.end;
     if(st&&en){ const i0=Math.round((parseD(st)-cv.pStart)/86400000),i1=Math.round((parseD(en)-cv.pStart)/86400000);
