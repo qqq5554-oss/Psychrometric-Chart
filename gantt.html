@@ -809,6 +809,10 @@ function buildPrintSVG(){
   let s=`<g font-size="10">`;
   let cx=0;
   s+=`<rect x="0" y="0" width="${tableW}" height="${bodyTop}" fill="#f1efe8" stroke="var(--line)"/>`;
+  // 表頭與甘特月/週表頭之間的空隙(來自面板間留白 8px + 甘特內容左邊界 PADL)補上同色背景+上下框線,讓表頭視覺連成一整條
+  s+=`<rect x="${tableW}" y="0" width="${8+PADL}" height="${bodyTop}" fill="#f1efe8"/>`;
+  s+=`<line x1="${tableW}" y1="0" x2="${tableW+8+PADL}" y2="0" stroke="var(--line)"/>`;
+  s+=`<line x1="${tableW}" y1="${bodyTop}" x2="${tableW+8+PADL}" y2="${bodyTop}" stroke="var(--line)"/>`;
   cols.forEach(c=>{ s+=`<text x="${cx+c.w/2}" y="${bodyTop/2+4}" text-anchor="middle" font-weight="700">${c.label}</text>`;
     s+=`<line x1="${cx}" y1="0" x2="${cx}" y2="${bodyTop+bodyH}" stroke="var(--line2)"/>`; cx+=c.w; });
   s+=`<line x1="${tableW}" y1="0" x2="${tableW}" y2="${bodyTop+bodyH}" stroke="var(--line)"/>`;
