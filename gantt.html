@@ -782,7 +782,8 @@ function buildPrintSVG(){
   const PAGE_W=Math.round(1123*widthMul), PAGE_H=794, titleH=36;
   const bodyTop=HEADH;
   const _footShown = !state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
-  const footH=_footShown?FOOTH:12;
+  const FOOT_G=22, FOOT_BH=FOOT_G*3;   // 頁尾三行數值列高(較原 30 縮小,整體更緊湊)
+  const footH=_footShown?(FOOT_BH+10):12;
   // 反推每日寬:左表+甘特填滿頁寬(不再用固定 14~16px 造成整張過寬被縮小);長/多工項時請切到 週/月 刻度
   const availGantt=Math.max(80, PAGE_W - tableW - 8 - PADL - PADR);
   LEADPAD=padDaysFor(availGantt/Math.max(1,cv.ndays));
@@ -837,42 +838,51 @@ function buildPrintSVG(){
     });
   });
   s+=`</g>`;
-  // footer:圖例(左)與 % 列名(右)合併成同一個框,切齊表格左緣(x=0),與甘特側頁尾同高對齊
+  // footer:圖例(左)與 % 列名+數值(右,含甘特側)合併成同一個外框,切齊表格左緣(x=0),看起來是一張完整表格
   const fyT=HEADH+bodyH;
-  if(!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom)){
+  const rowOffY=Math.round(FOOT_G*0.68);   // 讓文字在每列(FOOT_G 高)中垂直置中的基線偏移
+  let footerBorder='';
+  if(_footShown){
     const rowLabels=['每週預定%','累計預定%','累計實際%'];
     const labelAreaW=Math.max(...rowLabels.map(lb=>estTextW(lb,11)))+16;
-    const outerX=0, outerY=fyT, outerW=tableW, outerH=90, dividerX=outerW-labelAreaW;
-    s+=`<rect x="${outerX}" y="${outerY}" width="${outerW}" height="${outerH}" fill="#fff" stroke="var(--line)"/>`;
-    s+=`<line x1="${dividerX}" y1="${outerY}" x2="${dividerX}" y2="${outerY+outerH}" stroke="var(--line2)"/>`;
+    const dividerX=tableW-labelAreaW;
     rowLabels.forEach((lb,li)=>{
       const col=li===1?'var(--planned)':(li===2?'var(--actual)':'var(--ink)');
-      s+=`<text x="${outerW-6}" y="${fyT+19+li*30}" text-anchor="end" font-size="11" font-weight="600" fill="${col}">${lb}</text>`;
+      s+=`<text x="${tableW-6}" y="${fyT+rowOffY+li*FOOT_G}" text-anchor="end" font-size="10.5" font-weight="600" fill="${col}">${lb}</text>`;
     });
-    // 圖例:單欄、靠左並在剩餘高度中垂直置中
+    // 圖例:左欄=長條樣式(主要階段/分項作業)、右欄=曲線樣式(累計預定/累計實際);今日另成一列(靠左)
     const legX=8, legRight=dividerX-8, legW=legRight-legX;
-    if(legW>100){
-      s+=`<text x="${legX}" y="${outerY+14}" font-size="10" font-weight="700" fill="var(--ink)">圖例</text>`;
-      const legItems=[{t:'parent',l:'主要階段（大項）'},{t:'child',l:'分項作業'},
-        {t:'planned',l:'累計預定進度（S曲線）'},{t:'actual',l:'累計實際進度'}];
-      if(!state.hideToday) legItems.push({t:'today',l:'今日'});
-      const top=outerY+22, avail=outerH-22-6;
-      const rh=Math.max(12,Math.min(18, avail/legItems.length));
-      const blockH=legItems.length*rh, y0=top+Math.max(0,(avail-blockH)/2)+rh/2;
-      legItems.forEach((it,i)=>{
-        const sx=legX, cy=y0+i*rh;
-        if(it.t==='parent'){ s+=`<rect x="${sx}" y="${cy-2.5}" width="20" height="5" fill="var(--bar-parent)"/>`;
-          s+=`<path d="M${sx} ${cy+2.5} l4 5 v-5 z M${sx+20} ${cy+2.5} l-4 5 v-5 z" fill="var(--bar-parent)"/>`; }
-        else if(it.t==='child'){ s+=`<rect x="${sx}" y="${cy-4}" width="20" height="8" rx="2" fill="var(--bar-child)" stroke="#3a5670"/>`; }
-        else if(it.t==='planned'){ s+=`<line x1="${sx}" y1="${cy}" x2="${sx+20}" y2="${cy}" stroke="var(--planned)" stroke-width="2"/><circle cx="${sx+10}" cy="${cy}" r="2" fill="var(--planned)"/>`; }
-        else if(it.t==='actual'){ s+=`<line x1="${sx}" y1="${cy}" x2="${sx+20}" y2="${cy}" stroke="var(--actual)" stroke-width="2"/><circle cx="${sx+10}" cy="${cy}" r="2" fill="var(--actual)"/>`; }
-        else if(it.t==='today'){ s+=`<line x1="${sx+10}" y1="${cy-6}" x2="${sx+10}" y2="${cy+6}" stroke="#e8590c" stroke-width="1.2" stroke-dasharray="3 2"/>`; }
-        s+=`<text x="${sx+26}" y="${cy+3.2}" text-anchor="start" font-size="9.5" fill="var(--ink)">${it.l}</text>`;
-      });
+    if(legW>90){
+      const c0=legX, c1=legX+legW/2;
+      const hasToday=!state.hideToday;
+      const rG=hasToday?Math.min(16,(FOOT_BH-14)/3):Math.min(20,(FOOT_BH-14)/2);
+      const r1=fyT+14+rG*0.5, r2=r1+rG, r3=r2+rG;
+      const drawIcon=(t,sx,cy)=>{
+        if(t==='parent'){ s+=`<rect x="${sx}" y="${cy-2.5}" width="18" height="5" fill="var(--bar-parent)"/>`;
+          s+=`<path d="M${sx} ${cy+2.5} l4 5 v-5 z M${sx+18} ${cy+2.5} l-4 5 v-5 z" fill="var(--bar-parent)"/>`; }
+        else if(t==='child'){ s+=`<rect x="${sx}" y="${cy-4}" width="18" height="8" rx="2" fill="var(--bar-child)" stroke="#3a5670"/>`; }
+        else if(t==='planned'){ s+=`<line x1="${sx}" y1="${cy}" x2="${sx+18}" y2="${cy}" stroke="var(--planned)" stroke-width="2"/><circle cx="${sx+9}" cy="${cy}" r="2" fill="var(--planned)"/>`; }
+        else if(t==='actual'){ s+=`<line x1="${sx}" y1="${cy}" x2="${sx+18}" y2="${cy}" stroke="var(--actual)" stroke-width="2"/><circle cx="${sx+9}" cy="${cy}" r="2" fill="var(--actual)"/>`; }
+        else if(t==='today'){ s+=`<line x1="${sx+9}" y1="${cy-6}" x2="${sx+9}" y2="${cy+6}" stroke="#e8590c" stroke-width="1.2" stroke-dasharray="3 2"/>`; }
+      };
+      const item=(t,sx,cy,label)=>{ drawIcon(t,sx,cy); s+=`<text x="${sx+24}" y="${cy+3}" font-size="9" fill="var(--ink)">${label}</text>`; };
+      s+=`<text x="${legX}" y="${fyT+11}" font-size="9" font-weight="700" fill="var(--ink)">圖例</text>`;
+      item('parent', c0, r1, '主要階段（大項）');
+      item('child',  c0, r2, '分項作業');
+      item('planned',c1, r1, '累計預定進度（S曲線）');
+      item('actual', c1, r2, '累計實際進度');
+      if(hasToday) item('today', c0, r3, '今日');
     }
+    // 統一外框:附加在最後(以絕對座標繪製),涵蓋左表(標籤/圖例)與右側甘特(數值),兩塊視覺相連成一張表
+    const ganttAbsRight = tableW+8+ganttRight;
+    footerBorder = `<rect x="0" y="${fyT}" width="${ganttAbsRight}" height="${FOOT_BH}" fill="none" stroke="var(--line)"/>`
+      + `<line x1="${dividerX}" y1="${fyT}" x2="${dividerX}" y2="${fyT+FOOT_BH}" stroke="var(--line2)"/>`
+      + `<line x1="${dividerX}" y1="${fyT+FOOT_G}" x2="${ganttAbsRight}" y2="${fyT+FOOT_G}" stroke="var(--line2)"/>`
+      + `<line x1="${dividerX}" y1="${fyT+FOOT_G*2}" x2="${ganttAbsRight}" y2="${fyT+FOOT_G*2}" stroke="var(--line2)"/>`;
   }
   // 甘特區(平移到表格右邊)
-  s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowTops,rowHs)}</g>`;
+  s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowTops,rowHs,FOOT_G,rowOffY)}</g>`;
+  s+=footerBorder;   // 最後補繪頁尾外框/分隔線,讓左右兩塊(標籤區+甘特數值區)接成同一張表
   const title=esc(state.title);
   return resolveVars(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMidYMin meet">
     <style>text{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif}</style>
@@ -880,7 +890,7 @@ function buildPrintSVG(){
     <g transform="translate(0,${titleH})">${s}</g></svg>`);
 }
 // 甘特內容(列印版,DX 參數化;與畫面版同邏輯,去互動)
-function svgGutsP(d,cv,DXP,bodyH,rowTops,rowHs){
+function svgGutsP(d,cv,DXP,bodyH,rowTops,rowHs,footG,rowOffY){
   // 與畫面版同邏輯,但日寬 DXP 參數化、去除互動;逐列高度(rowHs)與左表一致
   const bodyTop=HEADH; let s='';
   const xO=i=>PADL+i*DXP;
@@ -923,14 +933,13 @@ function svgGutsP(d,cv,DXP,bodyH,rowTops,rowHs){
     s+=`<line x1="${tx}" y1="${bodyTop}" x2="${tx}" y2="${bodyTop+bodyH}" stroke="#e8590c" stroke-width="1.2" stroke-dasharray="4 3"/>`;
     s+=`<text x="${tx}" y="${bodyTop-2}" text-anchor="middle" font-size="8" fill="#e8590c" font-weight="700">今日</text>`; }
   if(!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom)){
-  const fy=bodyTop+bodyH; const G=30, BH=G*3;
-  s+=`<rect x="${PADL}" y="${fy}" width="${cv.ndays*DXP}" height="${BH}" fill="none" stroke="var(--line)"/>`;
-  for(let li=1;li<3;li++) s+=`<line x1="${PADL}" y1="${fy+li*G}" x2="${PADL+cv.ndays*DXP}" y2="${fy+li*G}" stroke="var(--line2)"/>`;
+  const fy=bodyTop+bodyH; const G=footG||22, BH=G*3, OFF=rowOffY||15;
+  // 外框與橫向分隔線改由 buildPrintSVG 於最外層統一補繪(與左表標籤區接成同一張表);此處僅保留週界縱線與數值
   cv.weeks.forEach((w,wi)=>{ const x0=xO(w.mondayIdx),x1=xO(Math.min(w.endIdx+1,cv.ndays)),xc=(x0+x1)/2;
-    s+=`<text x="${xc}" y="${fy+19}" text-anchor="middle" font-size="11">${w.inc.toFixed(1)}</text>`;
-    s+=`<text x="${xc}" y="${fy+19+G}" text-anchor="middle" font-size="11" fill="var(--planned)">${w.cum.toFixed(1)}</text>`;
+    s+=`<text x="${xc}" y="${fy+OFF}" text-anchor="middle" font-size="10">${w.inc.toFixed(1)}</text>`;
+    s+=`<text x="${xc}" y="${fy+OFF+G}" text-anchor="middle" font-size="10" fill="var(--planned)">${w.cum.toFixed(1)}</text>`;
     const a=state.actual[weekKey(w.monday)];
-    s+=`<text x="${xc}" y="${fy+19+G*2}" text-anchor="middle" font-size="11" fill="var(--actual)">${(a!=null&&a!=='')?Number(a).toFixed(1):'—'}</text>`;
+    s+=`<text x="${xc}" y="${fy+OFF+G*2}" text-anchor="middle" font-size="10" fill="var(--actual)">${(a!=null&&a!=='')?Number(a).toFixed(1):'—'}</text>`;
     if(wi>0) s+=`<line x1="${x0}" y1="${fy}" x2="${x0}" y2="${fy+BH}" stroke="var(--line2)"/>`; });
   }
   return s;
