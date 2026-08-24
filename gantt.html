@@ -837,12 +837,34 @@ function buildPrintSVG(){
     });
   });
   s+=`</g>`;
-  // footer 三列列名(畫在表格區、右對齊,避免壓到 W1)
+  // footer 三列列名(畫在表格區、右對齊,避免壓到 W1)+ 左下角圖例(僅在有進度線頁尾時)
   const fyT=HEADH+bodyH;
-  if(!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom)) ['每週預定%','累計預定%','累計實際%'].forEach((lb,li)=>{
-    const col=li===1?'var(--planned)':(li===2?'var(--actual)':'var(--ink)');
-    s+=`<text x="${tableW-6}" y="${fyT+19+li*30}" text-anchor="end" font-size="11" font-weight="600" fill="${col}">${lb}</text>`;
-  });
+  if(!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom)){
+    ['每週預定%','累計預定%','累計實際%'].forEach((lb,li)=>{
+      const col=li===1?'var(--planned)':(li===2?'var(--actual)':'var(--ink)');
+      s+=`<text x="${tableW-6}" y="${fyT+19+li*30}" text-anchor="end" font-size="11" font-weight="600" fill="${col}">${lb}</text>`;
+    });
+    // === 圖例:填補左下角空白;右緣留空間給 % 列名,寬度隨表格自適應 ===
+    const legX=6, legR=tableW-64, legW=legR-legX, legY=fyT+3, legH=FOOTH-6;
+    if(legW>150){
+      s+=`<rect x="${legX}" y="${legY}" width="${legW}" height="${legH}" fill="#fff" stroke="var(--line)" rx="3"/>`;
+      s+=`<text x="${legX+8}" y="${legY+14}" font-size="10" font-weight="700" fill="var(--ink)">圖例</text>`;
+      const legItems=[{t:'parent',l:'主要階段（大項）'},{t:'child',l:'分項作業'},
+        {t:'planned',l:'累計預定進度（S曲線）'},{t:'actual',l:'累計實際進度'}];
+      if(!state.hideToday) legItems.push({t:'today',l:'今日'});
+      const nRows=Math.ceil(legItems.length/2), colW=(legW-16)/2, x0=legX+10, y0=legY+30, rh=Math.min(22,(legH-32)/nRows);
+      legItems.forEach((it,i)=>{
+        const sx=x0+Math.floor(i/nRows)*colW, cy=y0+(i%nRows)*rh;
+        if(it.t==='parent'){ s+=`<rect x="${sx}" y="${cy-2.5}" width="22" height="5" fill="var(--bar-parent)"/>`;
+          s+=`<path d="M${sx} ${cy+2.5} l4 5 v-5 z M${sx+22} ${cy+2.5} l-4 5 v-5 z" fill="var(--bar-parent)"/>`; }
+        else if(it.t==='child'){ s+=`<rect x="${sx}" y="${cy-4}" width="22" height="8" rx="2" fill="var(--bar-child)" stroke="#3a5670"/>`; }
+        else if(it.t==='planned'){ s+=`<line x1="${sx}" y1="${cy}" x2="${sx+22}" y2="${cy}" stroke="var(--planned)" stroke-width="2"/><circle cx="${sx+11}" cy="${cy}" r="2" fill="var(--planned)"/>`; }
+        else if(it.t==='actual'){ s+=`<line x1="${sx}" y1="${cy}" x2="${sx+22}" y2="${cy}" stroke="var(--actual)" stroke-width="2"/><circle cx="${sx+11}" cy="${cy}" r="2" fill="var(--actual)"/>`; }
+        else if(it.t==='today'){ s+=`<line x1="${sx+11}" y1="${cy-6}" x2="${sx+11}" y2="${cy+6}" stroke="#e8590c" stroke-width="1.2" stroke-dasharray="3 2"/>`; }
+        s+=`<text x="${sx+28}" y="${cy+3.2}" font-size="9.5" fill="var(--ink)">${it.l}</text>`;
+      });
+    }
+  }
   // 甘特區(平移到表格右邊)
   s+=`<g transform="translate(${tableW+8},0)">${svgGutsP(d,gvp,PDX,bodyH,rowTops,rowHs)}</g>`;
   const title=esc(state.title);
