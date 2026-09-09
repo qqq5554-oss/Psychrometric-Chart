@@ -90,6 +90,16 @@ td.name{position:relative}
 .caret:hover{color:var(--accent)}
 tr.parent td.name .cell-in{padding-left:22px}
 .pct{font-variant-numeric:tabular-nums}
+/* 拖曳排序:項次欄左側握把 + 放置位置指示 */
+td.code{position:relative;padding-left:14px}
+.drag-h{position:absolute;left:1px;top:50%;transform:translateY(-50%);width:12px;height:20px;line-height:20px;
+  text-align:center;cursor:grab;color:#bdb8ab;font-size:11px;user-select:none;opacity:0;transition:opacity .12s}
+tr:hover .drag-h{opacity:1}
+.drag-h:hover{color:var(--accent)}
+.drag-h:active{cursor:grabbing}
+tr.dragging td{opacity:.45}
+tr.drop-before td{box-shadow:inset 0 2px 0 0 var(--accent)}
+tr.drop-after td{box-shadow:inset 0 -2px 0 0 var(--accent)}
 
 .chartwrap{flex:1;overflow:auto;background:#fff;position:relative}
 .gwrap{position:relative}
@@ -193,6 +203,7 @@ svg{display:block;font-family:inherit}
 
   <div class="hint">
     操作：金額、開始、結束、天數任填兩格自動算第三格 ｜ 拖曳長條<kbd>中段</kbd>平移、<kbd>兩端</kbd>改天數、按住<kbd>Shift</kbd>以7天為單位 ｜
+    項次左側<kbd>⠿</kbd>上下拖曳可調整順序（大項連同小項一起搬、項次與甘特圖自動更新）｜
     紅線=預定、綠線=實際（點下方實際%格輸入）｜ <span style="color:#e8590c">橘色虛線=今日</span> ｜ A3/SVG 匯出
   </div>
 </div>
@@ -352,7 +363,7 @@ function renderTable(){
     tr.addEventListener('mouseleave',()=>{ if(!dragState) highlight(null); });
     if(parent){
       tr.innerHTML=`
-        <td class="code">${it.code}</td>
+        <td class="code"><span class="drag-h" title="拖曳調整順序（大項會連同小項一起移動）">⠿</span>${it.code}</td>
         <td class="name"><span class="caret" data-act="toggle" title="收合／展開小項">${it.collapsed?'▸':'▾'}</span><input class="cell-in" data-f="name" value="${esc(it.name)}"></td>
         <td class="amount locked">${nf(it._amountShown)}</td>
         <td class="pct">${pf(it._weight)}</td>
@@ -362,7 +373,7 @@ function renderTable(){
         <td><span class="rowbtn" data-act="addchild">＋</span> <span class="rowbtn" data-act="del">✕</span></td>`;
     } else {
       tr.innerHTML=`
-        <td class="code"><input class="cell-in" data-f="code" value="${esc(it.code)}" style="width:46px"></td>
+        <td class="code"><span class="drag-h" title="拖曳調整順序">⠿</span><input class="cell-in" data-f="code" value="${esc(it.code)}" style="width:38px"></td>
         <td class="name"><input class="cell-in" data-f="name" value="${esc(it.name)}"></td>
         <td class="amount"><input class="cell-in" data-f="amount" value="${nf(it.amount)}"></td>
         <td class="pct">${pf(it._weight)}</td>
@@ -402,6 +413,35 @@ function renderTable(){
       if(act==='addchild'){ addChild(it.code); }
     }));
     tr.querySelector('.caret')?.addEventListener('click',()=>{ it.collapsed=!it.collapsed; renderAll(); });
+    // 拖曳排序:只有按住左側握把才可拖(避免與欄位編輯/選字衝突)
+    const dh=tr.querySelector('.drag-h');
+    if(dh){
+      dh.addEventListener('mousedown',()=>{ tr.draggable=true; });
+      dh.addEventListener('mouseup',()=>{ tr.draggable=false; });
+    }
+    tr.addEventListener('dragstart',e=>{
+      dragRowId=it.id; tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{ e.dataTransfer.setData('text/plain', it.id); }catch(_){}
+    });
+    tr.addEventListener('dragend',()=>{
+      tr.draggable=false; tr.classList.remove('dragging'); clearDropMark(); dragRowId=null;
+    });
+    tr.addEventListener('dragover',e=>{
+      if(!dragRowId || dragRowId===it.id) return;
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      const r=tr.getBoundingClientRect();
+      clearDropMark();
+      tr.classList.add((e.clientY-r.top)<r.height/2 ? 'drop-before':'drop-after');
+    });
+    tr.addEventListener('drop',e=>{
+      if(!dragRowId || dragRowId===it.id) return;
+      e.preventDefault();
+      const r=tr.getBoundingClientRect();
+      const before=(e.clientY-r.top)<r.height/2, src=dragRowId;
+      clearDropMark(); dragRowId=null;
+      moveRow(src, it.id, before);
+    });
     tb.appendChild(tr);
   });
 }
@@ -990,6 +1030,47 @@ function renumber(){
     if(isParentCode(it.code)){ pNum++; sNum=0; it.code=String(pNum); }
     else { sNum++; it.code=(pNum||1)+'.'+sNum; }
   });
+}
+/* ===================== 拖曳調整順序 ===================== */
+let dragRowId=null;
+// 該列在 state.items 的搬移範圍:大項含其底下所有小項(即使收合也一起搬);小項只有自己
+function blockRange(idx){
+  if(!isParentCode(state.items[idx].code)) return [idx, idx+1];
+  let end=idx+1;
+  while(end<state.items.length && !isParentCode(state.items[end].code)) end++;
+  return [idx, end];
+}
+function clearDropMark(){
+  document.querySelectorAll('#tbody tr.drop-before,#tbody tr.drop-after')
+    .forEach(t=>t.classList.remove('drop-before','drop-after'));
+}
+// 把 dragId 這一列(或整個大項群組)移到 targetId 之前/之後,再重排項次
+function moveRow(dragId, targetId, before){
+  const from=state.items.findIndex(x=>x.id===dragId);
+  const ti=state.items.findIndex(x=>x.id===targetId);
+  if(from<0||ti<0||dragId===targetId) return;
+  const [bs,be]=blockRange(from);
+  if(ti>=bs && ti<be) return;            // 放到自己(或自己的小項)上,不動作
+  const dragIsParent=isParentCode(state.items[from].code);
+  let insert;
+  if(dragIsParent){
+    // 大項:對齊到大項邊界(落在小項上時,視為其所屬大項群組)
+    let gs=ti; while(gs>0 && !isParentCode(state.items[gs].code)) gs--;
+    const [gStart,gEnd]=blockRange(gs);
+    insert = before ? gStart : gEnd;
+  }else{
+    insert = before ? ti : ti+1;
+    // 小項不可落在第一個大項之前(否則無所屬大項)
+    const firstParent=state.items.findIndex(x=>isParentCode(x.code));
+    if(firstParent>=0 && insert<=firstParent) insert=firstParent+1;
+  }
+  const block=state.items.slice(bs,be);
+  const rest=state.items.slice(0,bs).concat(state.items.slice(be));
+  let ins=insert;                         // 移除原區塊後修正插入位置
+  if(ins>=be) ins-=block.length; else if(ins>bs) ins=bs;
+  state.items=rest.slice(0,ins).concat(block, rest.slice(ins));
+  renumber();                             // 項次重排,甘特圖依 state.items 順序一併更新
+  renderAll();
 }
 function delItem(it){
   if(isParentCode(it.code)){
