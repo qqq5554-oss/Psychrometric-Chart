@@ -833,21 +833,36 @@ function buildPrintSVG(){
   if(!cv.pStart) return '';
   const vis=visibleItems();
   const rows=vis.length;
-  let cols=[
-    {k:'code',  label:'項次',    w:44, align:'middle'},
-    {k:'name',  label:'工程項目', w:236,align:'start'},
-    {k:'amount',label:'金額',    w:84, align:'end'},
-    {k:'weight',label:'權重%',   w:56, align:'middle'},
-    {k:'start', label:'開始',    w:72, align:'middle'},
-    {k:'end',   label:'結束',    w:72, align:'middle'},
-    {k:'days',  label:'天數',    w:44, align:'middle'},
-  ];
-  if(state.hideAmount) cols=cols.filter(c=>c.k!=='amount');
-  if(state.hideWeight) cols=cols.filter(c=>c.k!=='weight');
-  const tableW=cols.reduce((a,c)=>a+c.w,0);
   // === A3 橫式實際點數畫布(8mm 邊界後約 1123×794);寬度可乘倍率以配合 A3 拉頁(2/3 折) ===
   const widthMul=Math.max(1, Math.min(Number(state.exportWidthMul)||1, 3));
   const PAGE_W=Math.round(1123*widthMul), PAGE_H=794, titleH=Math.round(36*exportFontScale());
+  // 欄寬:以文字為主,依欄名與實際內容在目前匯出字級下的寬度自動量測(字級放大欄位跟著變寬,不會重疊)
+  const HDRFS=pfz(10), CELLFS=pfz(9.5), NAMEFS=pfz(10), COLPAD=16;
+  let cols=[
+    {k:'code',  label:'項次',    align:'middle', get:it=>String(it.code)},
+    {k:'name',  label:'工程項目', align:'start',  get:it=>String(it.name)},
+    {k:'amount',label:'金額',    align:'end',    get:it=>nf(it._amountShown)},
+    {k:'weight',label:'權重%',   align:'middle', get:it=>(it._weight*100).toFixed(2)+'%'},
+    {k:'start', label:'開始',    align:'middle', get:it=>(isParentCode(it.code)?it._startShown:it.start)||''},
+    {k:'end',   label:'結束',    align:'middle', get:it=>(isParentCode(it.code)?it._endShown:it.end)||''},
+    {k:'days',  label:'天數',    align:'middle', get:it=>String(it._daysShown||'')},
+  ];
+  if(state.hideAmount) cols=cols.filter(c=>c.k!=='amount');
+  if(state.hideWeight) cols=cols.filter(c=>c.k!=='weight');
+  cols.forEach(c=>{
+    const fs=(c.k==='name')?NAMEFS:CELLFS;
+    let w=estTextW(c.label, HDRFS);
+    vis.forEach(it=>{ w=Math.max(w, estTextW(c.get(it), fs)); });
+    c.w=Math.max(30, Math.ceil(w+COLPAD));
+  });
+  // 工項名稱欄可能很長:限制表格總寬,超出時壓縮名稱欄(名稱改為自動換行、列高增加),確保甘特仍有空間
+  const nameCol=cols.find(c=>c.k==='name');
+  if(nameCol){
+    const othersW=cols.reduce((a,c)=>a+(c===nameCol?0:c.w),0);
+    const tableBudget=Math.round(PAGE_W*0.62)-8-PADL-PADR;
+    nameCol.w=Math.max(120, Math.min(nameCol.w, tableBudget-othersW));
+  }
+  const tableW=cols.reduce((a,c)=>a+c.w,0);
   const bodyTop=HEADH;
   const _footShown = !state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom);
   const FOOT_G=Math.round(22*exportFontScale()), FOOT_BH=FOOT_G*3;   // 頁尾三行數值列高(隨匯出字級縮放)
@@ -861,7 +876,7 @@ function buildPrintSVG(){
   const totalW=tableW+8+ganttRight+PADR;     // ≈ PAGE_W
   // 每列高度:依名稱完整換行所需行數決定(不截斷);放得下時平均加高撐滿頁高,放不下則整體變高(列/框變大)
   const availBody=PAGE_H - titleH - bodyTop - footH;
-  const NAMEFS=pfz(10), NAMELH=pfz(12), VPAD=8;
+  const NAMELH=pfz(12), VPAD=8;   // NAMEFS 已於欄寬量測時定義
   const nameColW=((cols.find(c=>c.k==='name'))||{w:236}).w - 8;
   const minHs = vis.map(it=>{
     const ln = Math.max(1, wrapText(String(it.name), NAMEFS, nameColW, 99).length);
