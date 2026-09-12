@@ -204,6 +204,7 @@ svg{display:block;font-family:inherit}
   <div class="hint">
     操作：金額、開始、結束、天數任填兩格自動算第三格 ｜ 拖曳長條<kbd>中段</kbd>平移、<kbd>兩端</kbd>改天數、按住<kbd>Shift</kbd>以7天為單位 ｜
     項次左側<kbd>⠿</kbd>上下拖曳可調整順序（大項連同小項一起搬、項次與甘特圖自動更新）｜
+    尚未排定日期的小項，直接在甘特圖該列<kbd>點一下</kbd>即以該日期前後各5天建立長條，再拖曳微調（免開日曆）｜
     紅線=預定、綠線=實際（點下方實際%格輸入）｜ <span style="color:#e8590c">橘色虛線=今日</span> ｜ A3/SVG 匯出
   </div>
 </div>
@@ -639,7 +640,9 @@ function svgBody(d,cv,bodyH){
   // 列高亮帶(供雙向 hover) + 列底線 + 長條
   visibleItems().forEach((it,ri)=>{
     const y=rowTop(ri), rh=rowHi(ri), yc=y+rh/2;
-    s+=`<rect class="rowband" data-id="${it.id}" x="${PADL}" y="${y}" width="${cv.ndays*DX}" height="${rh}" fill="transparent" pointer-events="all"/>`;
+    // 尚未排定日期的小項:整列可點,點下去以該日期為中心先給前後 5 天的長條(免開日曆)
+    const noDate=!isParentCode(it.code) && (!it.start||!it.end);
+    s+=`<rect class="rowband${noDate?' setdate':''}" data-id="${it.id}" x="${PADL}" y="${y}" width="${cv.ndays*DX}" height="${rh}" fill="transparent" pointer-events="all"${noDate?' style="cursor:crosshair"':''}>${noDate?'<title>點選日期位置：先建立前後各 5 天的長條，再拖曳微調</title>':''}</rect>`;
     s+=`<line x1="${PADL}" y1="${y+rh}" x2="${PADL+cv.ndays*DX}" y2="${y+rh}" stroke="var(--line2)"/>`;
     const parent=isParentCode(it.code);
     const st=parent?it._startShown:it.start, en=parent?it._endShown:it.end;
@@ -675,18 +678,18 @@ function svgBody(d,cv,bodyH){
   }
   let pts=[[xOf(cv.lead),yPct(0)]];
   cv.weeks.forEach(w=>pts.push([xOf(w.endIdx+1), yPct(w.cum)]));
-  s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--planned)" stroke-width="2"/>`;
-  pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.4" fill="var(--planned)"/>`);
+  s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--planned)" stroke-width="2" pointer-events="none"/>`;
+  pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.4" fill="var(--planned)" pointer-events="none"/>`);
   let apts=[[xOf(cv.lead),yPct(0)]]; let hasA=false;
   cv.weeks.forEach(w=>{ const a=state.actual[weekKey(w.monday)]; if(a!=null&&a!==''){ apts.push([xOf(w.endIdx+1),yPct(Number(a))]); hasA=true; } });
   if(hasA){
-    s+=`<polyline points="${apts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--actual)" stroke-width="2"/>`;
-    apts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.4" fill="var(--actual)"/>`);
+    s+=`<polyline points="${apts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--actual)" stroke-width="2" pointer-events="none"/>`;
+    apts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.4" fill="var(--actual)" pointer-events="none"/>`);
   }
   }
   // #6 今日線(主體,畫在長條與曲線之上)
   if(!state.hideToday && _ti>=0&&_ti<=cv.ndays){ const tx=xOf(_ti);
-    s+=`<line x1="${tx}" y1="0" x2="${tx}" y2="${bodyH}" stroke="#e8590c" stroke-width="1.5" stroke-dasharray="4 3"/>`; }
+    s+=`<line x1="${tx}" y1="0" x2="${tx}" y2="${bodyH}" stroke="#e8590c" stroke-width="1.5" stroke-dasharray="4 3" pointer-events="none"/>`; }
   // 下方每週 % 列(僅日/週檢視,其餘刻度太密改只留曲線)
   if(!state.hideProgress && (state.zoom==='day'||state.zoom==='week'||!state.zoom)){
   const fy=bodyH; const GAP=30, BOXH=GAP*3;
@@ -719,9 +722,30 @@ function highlight(id){ if(hlId===id) return; if(hlId!=null) applyHL(hlId,false)
 
 /* ===================== 拖曳 ===================== */
 let dragState=null;
+// 由滑鼠位置換算甘特圖上的日期(SVG 座標→天索引→日期)
+function dateAtClientX(svg, clientX){
+  if(!geo) return null;
+  const m=svg.getScreenCTM(); if(!m) return null;
+  const pt=svg.createSVGPoint(); pt.x=clientX; pt.y=0;
+  const x=pt.matrixTransform(m.inverse()).x;
+  let idx=Math.floor((x-PADL)/DX);
+  idx=Math.max(0, Math.min(idx, geo.ndays-1));
+  return addDays(geo.pStart, idx);
+}
 function attachDrag(){
   const svg=document.getElementById('gsvg'); if(!svg) return;
   svg.querySelectorAll('.actcell').forEach(t=>t.addEventListener('click',()=>openActual(t.dataset.wk)));
+  // 未排定日期的小項:點該列的任一日期,先建立「該日期前後各 5 天」的長條,之後再拖曳微調
+  svg.querySelectorAll('.rowband.setdate').forEach(rb=>{
+    rb.addEventListener('click',e=>{
+      const it=state.items.find(x=>x.id===rb.dataset.id);
+      if(!it || isParentCode(it.code) || (it.start&&it.end)) return;
+      const d=dateAtClientX(svg, e.clientX); if(!d) return;
+      it.start=fmtD(addDays(d,-5)); it.end=fmtD(addDays(d,5));
+      it.days=diffDays(it.start,it.end);
+      renderAll();
+    });
+  });
   // 長條:按下拖曳 + 滑入高亮
   svg.querySelectorAll('.bar').forEach(bar=>{
     bar.addEventListener('mousedown',e=>{
