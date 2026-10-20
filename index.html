@@ -482,7 +482,7 @@ body {
         </div>
         <div class="fg">
           <label id="lbl_flowA">風量 A (CMH)</label>
-          <input type="number" id="mix_a_cmh" value="1000" min="0">
+          <input type="number" id="mix_a_cmh" value="1000" min="0" oninput="onMixFlowInput()">
         </div>
 
         <div class="mix-label b" id="lbl_airB">氣流 B</div>
@@ -510,7 +510,7 @@ body {
         </div>
         <div class="fg">
           <label id="lbl_flowB">風量 B (CMH)</label>
-          <input type="number" id="mix_b_cmh" value="1000" min="0">
+          <input type="number" id="mix_b_cmh" value="1000" min="0" oninput="onMixFlowInput()">
         </div>
 
         <div class="section-label" id="lbl_mixRatio">混合比例</div>
@@ -1203,35 +1203,67 @@ function clearChart() {
 // ═══════════════════════════════════════════════════════════════
 // 混風 Tab Functions
 // ═══════════════════════════════════════════════════════════════
-var _skipRatioSync = false;
+var _mixSync = false;
+
+// 由 A/B 風量算出體積混合比例(A%);風量無效或總和為 0 時回傳 null
+function mixFlowRatio() {
+  var a = parseFloat(document.getElementById('mix_a_cmh').value);
+  var b = parseFloat(document.getElementById('mix_b_cmh').value);
+  if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || (a + b) <= 0) return null;
+  return a / (a + b) * 100;
+}
+
+// 風量改變 → 比例滑桿與 A/B% 跟著更新
+function onMixFlowInput() {
+  if (_mixSync) return;
+  var r = mixFlowRatio();
+  if (r === null) return;
+  _mixSync = true;
+  document.getElementById('mix_slider').value = Math.round(r);
+  document.getElementById('mix_ra').value = r.toFixed(1);
+  document.getElementById('mix_rb').value = (100 - r).toFixed(1);
+  _mixSync = false;
+}
+
+// 比例改變 → 以「總風量不變」回推 A/B 風量
+function applyRatioToFlows(rA) {
+  var a = parseFloat(document.getElementById('mix_a_cmh').value) || 0;
+  var b = parseFloat(document.getElementById('mix_b_cmh').value) || 0;
+  var total = Math.round(a + b);
+  if (total <= 0) return;
+  var newA = Math.round(total * rA / 100);
+  document.getElementById('mix_a_cmh').value = newA;
+  document.getElementById('mix_b_cmh').value = total - newA;
+}
 
 function onMixSlider() {
-  var val = parseInt(document.getElementById('mix_slider').value);
-  _skipRatioSync = true;
-  document.getElementById('mix_ra').value = val;
-  document.getElementById('mix_rb').value = 100 - val;
-  _skipRatioSync = false;
+  if (_mixSync) return;
+  var val = parseFloat(document.getElementById('mix_slider').value);
+  _mixSync = true;
+  document.getElementById('mix_ra').value = val.toFixed(1);
+  document.getElementById('mix_rb').value = (100 - val).toFixed(1);
+  applyRatioToFlows(val);
+  _mixSync = false;
 }
 
 function onMixRatioInput(src) {
-  if (_skipRatioSync) return;
-  _skipRatioSync = true;
+  if (_mixSync) return;
+  var rA;
   if (src === 'A') {
     var a = parseFloat(document.getElementById('mix_ra').value);
-    if (!isNaN(a)) {
-      a = Math.max(0, Math.min(100, a));
-      document.getElementById('mix_rb').value = (100 - a).toFixed(0);
-      document.getElementById('mix_slider').value = a;
-    }
+    if (isNaN(a)) return;
+    rA = Math.max(0, Math.min(100, a));
   } else {
     var b = parseFloat(document.getElementById('mix_rb').value);
-    if (!isNaN(b)) {
-      b = Math.max(0, Math.min(100, b));
-      document.getElementById('mix_ra').value = (100 - b).toFixed(0);
-      document.getElementById('mix_slider').value = 100 - b;
-    }
+    if (isNaN(b)) return;
+    rA = 100 - Math.max(0, Math.min(100, b));
   }
-  _skipRatioSync = false;
+  _mixSync = true;
+  if (src === 'A') document.getElementById('mix_rb').value = (100 - rA).toFixed(1);
+  else document.getElementById('mix_ra').value = rA.toFixed(1);
+  document.getElementById('mix_slider').value = Math.round(rA);
+  applyRatioToFlows(rA);
+  _mixSync = false;
 }
 
 function calcMixing() {
@@ -1246,29 +1278,15 @@ function calcMixing() {
   );
   if (!stA || !stB) { alert(lang === 'zh' ? '無法計算，請檢查輸入' : 'Check inputs'); return; }
 
-  var cmhA = parseFloat(document.getElementById('mix_a_cmh').value) || 1000;
-  var cmhB = parseFloat(document.getElementById('mix_b_cmh').value) || 1000;
-  var rA = parseFloat(document.getElementById('mix_ra').value);
-  if (!isNaN(rA)) {
-    var total = cmhA + cmhB;
-    if (total > 0) {
-      var fracA = rA / 100;
-      // Adjust CMH based on ratio
-    }
-  }
-  // Mass flow mixing
+  var cmhA = parseFloat(document.getElementById('mix_a_cmh').value) || 0;
+  var cmhB = parseFloat(document.getElementById('mix_b_cmh').value) || 0;
+  // 質量流率混風:直接依實際風量計算(風量已與混合比例雙向連動,不再另行覆蓋)
   var vA = Psychro.specVolume(stA.tdb, stA.w / 1000, P);
   var vB = Psychro.specVolume(stB.tdb, stB.w / 1000, P);
   var mA = cmhA / (vA * 3600); // kg/s
   var mB = cmhB / (vB * 3600);
   var mTotal = mA + mB;
   if (mTotal <= 0) { alert(lang === 'zh' ? '風量不能為零' : 'Flow cannot be zero'); return; }
-  // Override ratio
-  var ra = parseFloat(document.getElementById('mix_ra').value);
-  if (!isNaN(ra)) {
-    mA = mTotal * (ra / 100);
-    mB = mTotal * ((100 - ra) / 100);
-  }
   var Wm = (mA * stA.w / 1000 + mB * stB.w / 1000) / mTotal;
   var hm = (mA * stA.h + mB * stB.h) / mTotal;
   var Tm = (hm - 2501 * Wm) / (1.006 + 1.86 * Wm);
@@ -1429,6 +1447,7 @@ document.addEventListener('mouseup', function() {
 // Init
 // ═══════════════════════════════════════════════════════════════
 redraw();
+onMixFlowInput();   // 開啟時讓混合比例與預設風量一致
 </script>
 </body>
 </html>
